@@ -148,3 +148,25 @@ ul li {
   padding: 10px 20px;
   background-color: #333;
  
+#resume {
+  text-align: center;
+}
+
+#resume p {
+  margin-bottom: 10px;
+}
+
+#view-resume-btn {
+  display: inline-block;
+  padding: 10px 20px;
+  background-color: #333;
+  color: #fff;
+  text-decoration: none;
+  border-radius: 4px;
+  transition: background-color 0.3s;
+  cursor: pointer;
+}
+
+#view-resume-btn:hover {
+  background-color: #555;
+}
