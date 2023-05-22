@@ -22,6 +22,12 @@ h1 {
   margin-bottom: 10px;
 }
 
+img {
+  max-width: 200px;
+  border-radius: 50%;
+  margin-bottom: 20px;
+}
+
 main {
   padding: 20px;
 }
@@ -77,6 +83,15 @@ footer {
   text-align: center;
   max-width: 600px;
   margin: 0 auto;
+}
+
+ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+ul li {
+  margin-bottom: 10px;
 }
 
 /* Responsive styles */
