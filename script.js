@@ -46,21 +46,4 @@ document.addEventListener('DOMContentLoaded', function() {
       project.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)';
     });
   });
-
-  // Resume modal
-  const viewResumeBtn = document.getElementById('view-resume-btn');
-  const resumeModal = document.getElementById('resume-modal');
-  const closeModalBtn = document.getElementById('close-modal-btn');
-
-  viewResumeBtn.addEventListener('click', function() {
-    resumeModal.style.display = 'block';
-    const resumeIframe = document.getElementById('resume-iframe');
-    resumeIframe.src = 'resume.pdf'; // Replace 'resume.pdf' with the correct path to your resume file
-  });
-
-  closeModalBtn.addEventListener('click', function() {
-    resumeModal.style.display = 'none';
-    const resumeIframe = document.getElementById('resume-iframe');
-    resumeIframe.src = ''; // Clear the iframe source when closing the modal
-  });
 });
