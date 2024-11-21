@@ -1,37 +1,97 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <title></title>
-  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Minimalistic Portfolio</title>
   <style>
+    /* Center the layout and apply responsive design */
     body {
-      background-color: black;
-      color: #00FF00;
-      font-family: "Courier New", Courier, monospace;
       margin: 0;
-      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: 'Arial', sans-serif;
+      text-align: center;
     }
-    .content {
-      width: 80%;
-      margin: 0 auto;
-      border: 1px solid #00FF00;
-      padding: 10px;
-      min-height: 80vh;
+
+    /* JS-enabled background with animation */
+    body.js-enabled {
+      background: linear-gradient(45deg, #ff9a9e, #fad0c4, #fbc2eb);
+      background-size: 400% 400%;
+      animation: gradient 10s infinite;
+      color: #fff;
     }
-    a {
-      color: #00FF00;
-      text-decoration: none;
+
+    /* Fallback styling for users without JavaScript */
+    body.js-disabled {
+      background: #2a2a2a;
+      color: #f1f1f1;
     }
-    a:hover {
-      text-decoration: underline;
+
+    /* Waving animation for noscript message */
+    @keyframes wave {
+      0% { transform: rotate(0deg); }
+      50% { transform: rotate(10deg); }
+      100% { transform: rotate(-10deg); }
     }
-    .content:focus {
-      outline: none;
+
+    .wave {
+      font-size: 2.5rem;
+      animation: wave 3s infinite alternate;
     }
   </style>
 </head>
 <body>
-  <div class="content" contenteditable="true" spellcheck="false">
+  <!-- Default content for users with JS -->
+  <div id="content">
+    <h1>Hi, I'm <span id="typing"></span></h1>
   </div>
+
+  <!-- Fallback content for noscript users -->
+  <noscript>
+    <div class="message">
+      <div class="wave">👋</div>
+      <p>Hello! It seems JavaScript is disabled.</p>
+      <p>But that's okay! Enjoy this special fallback experience.</p>
+    </div>
+  </noscript>
+
+  <script>
+    /*
+      Add 'js-enabled' class to <body> for style differentiation.
+      This pattern separates JS-dependent styling from fallback modes.
+    */
+    document.body.classList.add('js-enabled');
+
+    /*
+      Typing effect:
+      - Loops through an array of words.
+      - Simulates typing by progressively adding characters.
+    */
+    const words = ["a Software Engineer.", "a Web Developer.", "a Creator."];
+    let current = 0;
+    let index = 0;
+    let typingElement = document.getElementById("typing");
+
+    function typeEffect() {
+      if (index < words[current].length) {
+        typingElement.innerText += words[current].charAt(index);
+        index++;
+        setTimeout(typeEffect, 100); // Type next character
+      } else {
+        setTimeout(() => {
+          // Clear text and move to the next word
+          typingElement.innerText = "";
+          index = 0;
+          current = (current + 1) % words.length;
+          typeEffect();
+        }, 2000);
+      }
+    }
+
+    typeEffect();
+  </script>
 </body>
 </html>
