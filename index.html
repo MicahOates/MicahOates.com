@@ -3,95 +3,85 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>What you seek has always been here. Keep typing. The answers will find you.</title>
+  <title>Just keep typing.</title>
   <style>
-    /* Center the layout and apply responsive design */
-    body {
+    * {
       margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
       display: flex;
+      flex-direction: column;
       justify-content: center;
       align-items: center;
-      height: 100vh;
-      font-family: 'Arial', sans-serif;
-      text-align: center;
+      min-height: 100vh;
+      background: #1a202c;
+      color: #e2e8f0;
+      font-family: 'Courier New', Courier, monospace;
     }
 
-    /* JS-enabled background with animation */
-    body.js-enabled {
-      background: linear-gradient(45deg, #ff9a9e, #fad0c4, #fbc2eb);
-      background-size: 400% 400%;
-      animation: gradient 10s infinite;
-      color: #fff;
-    }
-
-    /* Fallback styling for users without JavaScript */
-    body.js-disabled {
-      background: #2a2a2a;
-      color: #f1f1f1;
-    }
-
-    /* Waving animation for noscript message */
-    @keyframes wave {
-      0% { transform: rotate(0deg); }
-      50% { transform: rotate(10deg); }
-      100% { transform: rotate(-10deg); }
-    }
-
-    .wave {
+    h1 {
       font-size: 2.5rem;
-      animation: wave 3s infinite alternate;
+      text-align: center;
+      margin-bottom: 1rem;
+      color: #f6ad55;
+    }
+
+    p {
+      font-size: 1.2rem;
+      margin-bottom: 2rem;
+      text-align: center;
+      color: #a0aec0;
+    }
+
+    .output {
+      font-size: 1.5rem;
+      white-space: pre-wrap;
+      outline: none;
+      caret-color: transparent;
+    }
+
+    .cursor {
+      display: inline-block;
+      background: #e2e8f0;
+      width: 10px;
+      height: 1.5rem;
+      animation: blink 1s steps(2, start) infinite;
+    }
+
+    @keyframes blink {
+      50% {
+        background: transparent;
+      }
     }
   </style>
 </head>
 <body>
-  <!-- Default content for users with JS -->
-  <div id="content">
-    <h1>Hi, I'm <span id="typing"></span></h1>
+  <h1>"What you seek has always been here."</h1>
+  <p>Keep typing. The answers will find you.</p>
+  <div id="output" class="output">
+    <span id="cursor" class="cursor"></span>
   </div>
 
-  <!-- Fallback content for noscript users -->
-  <noscript>
-    <div class="message">
-      <div class="wave">👋</div>
-      <p>Hello! It seems JavaScript is disabled.</p>
-      <p>But that's okay! Enjoy this special fallback experience.</p>
-    </div>
-  </noscript>
-
   <script>
-    /*
-      Add 'js-enabled' class to <body> for style differentiation.
-      This pattern separates JS-dependent styling from fallback modes.
-    */
-    document.body.classList.add('js-enabled');
+    const output = document.getElementById('output');
+    const cursor = document.getElementById('cursor');
+    let text = '';
 
-    /*
-      Typing effect:
-      - Loops through an array of words.
-      - Simulates typing by progressively adding characters.
-    */
-    const words = ["a Software Engineer.", "a Web Developer.", "a Creator."];
-    let current = 0;
-    let index = 0;
-    let typingElement = document.getElementById("typing");
-
-    function typeEffect() {
-      if (index < words[current].length) {
-        typingElement.innerText += words[current].charAt(index);
-        index++;
-        setTimeout(typeEffect, 100); // Type next character
-      } else {
-        setTimeout(() => {
-          // Clear text and move to the next word
-          typingElement.innerText = "";
-          index = 0;
-          current = (current + 1) % words.length;
-          typeEffect();
-        }, 2000);
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Backspace') {
+        text = text.slice(0, -1);
+      } else if (event.key.length === 1) {
+        text += event.key;
       }
-    }
+      render();
+    });
 
-    typeEffect();
+    function render() {
+      output.innerHTML = text + cursor.outerHTML;
+    }
   </script>
 </body>
 </html>
