@@ -3,85 +3,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Just keep typing.</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      background: #1a202c;
-      color: #e2e8f0;
-      font-family: 'Courier New', Courier, monospace;
-    }
-
-    h1 {
-      font-size: 2.5rem;
-      text-align: center;
-      margin-bottom: 1rem;
-      color: #f6ad55;
-    }
-
-    p {
-      font-size: 1.2rem;
-      margin-bottom: 2rem;
-      text-align: center;
-      color: #a0aec0;
-    }
-
-    .output {
-      font-size: 1.5rem;
-      white-space: pre-wrap;
-      outline: none;
-      caret-color: transparent;
-    }
-
-    .cursor {
-      display: inline-block;
-      background: #e2e8f0;
-      width: 10px;
-      height: 1.5rem;
-      animation: blink 1s steps(2, start) infinite;
-    }
-
-    @keyframes blink {
-      50% {
-        background: transparent;
-      }
-    }
-  </style>
+  <title>Micah Oates</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <h1>"What you seek has always been here."</h1>
-  <p>Keep typing. The answers will find you.</p>
-  <div id="output" class="output">
-    <span id="cursor" class="cursor"></span>
+  <div id="scene-container"></div>
+  <div class="overlay">
+    <h1>Micah Oates</h1>
+    <p>The void holds the answers. Seek, and you shall find.</p>
   </div>
-
-  <script>
-    const output = document.getElementById('output');
-    const cursor = document.getElementById('cursor');
-    let text = '';
-
-    document.addEventListener('keydown', (event) => {
-      if (event.key === 'Backspace') {
-        text = text.slice(0, -1);
-      } else if (event.key.length === 1) {
-        text += event.key;
-      }
-      render();
-    });
-
-    function render() {
-      output.innerHTML = text + cursor.outerHTML;
-    }
-  </script>
+  <div id="easter-egg" class="easter-egg">
+    <h2>Hidden Sector Discovered</h2>
+    <p>You’ve accessed the secret layer. Here’s where the magic happens.</p>
+    <ul>
+      <li><a href="#">Project Alpha</a></li>
+      <li><a href="#">Social Link</a></li>
+      <li><a href="#">Contact</a></li>
+    </ul>
+    <button id="close-easter-egg">Close</button>
+  </div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
