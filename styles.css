@@ -26,17 +26,18 @@ body {
   transform: translate(-50%, -50%);
   text-align: center;
   z-index: 1;
+  pointer-events: none;
 }
 
 .overlay h1 {
-  font-size: 3rem;
-  text-shadow: 0 0 10px #00ffcc;
-  animation: glitch 2s infinite;
+  font-size: 3.5rem;
+  text-shadow: 0 0 15px #00ffcc, 0 0 30px #ff00ff;
+  animation: glitch 1.5s infinite;
 }
 
 .overlay p {
-  font-size: 1.2rem;
-  margin-top: 10px;
+  font-size: 1.3rem;
+  margin-top: 15px;
   color: #ff00ff;
 }
 
@@ -46,41 +47,51 @@ body {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: rgba(0, 0, 0, 0.8);
-  padding: 20px;
+  background: rgba(0, 0, 0, 0.9);
+  padding: 25px;
   border: 2px solid #00ffcc;
-  box-shadow: 0 0 20px #00ffcc;
+  box-shadow: 0 0 25px #00ffcc, inset 0 0 10px #ff00ff;
   z-index: 2;
 }
 
 .easter-egg h2 {
   color: #00ffcc;
+  text-shadow: 0 0 10px #00ffcc;
 }
 
 .easter-egg p {
   color: #ff00ff;
+  margin: 10px 0;
 }
 
 .easter-egg ul {
   list-style: none;
-  margin: 10px 0;
+  margin: 15px 0;
 }
 
 .easter-egg a {
   color: #00ffcc;
   text-decoration: none;
+  transition: color 0.3s;
+}
+
+.easter-egg a:hover {
+  color: #ff00ff;
 }
 
 .easter-egg button {
   background: #ff00ff;
   border: none;
-  padding: 10px;
+  padding: 10px 20px;
   color: #000;
   cursor: pointer;
+  box-shadow: 0 0 10px #ff00ff;
 }
 
 @keyframes glitch {
-  0% { text-shadow: 0 0 10px #00ffcc; }
-  50% { text-shadow: 5px 5px 0 #ff00ff, -5px -5px 0 #00ffcc; }
-  100% { text-shadow: 0 0 10px #00ffcc; }
+  0% { text-shadow: 0 0 15px #00ffcc, 0 0 30px #ff00ff; }
+  20% { text-shadow: 3px 3px 0 #ff00ff, -3px -3px 0 #00ffcc; }
+  40% { text-shadow: -2px 2px 0 #00ffcc, 2px -2px 0 #ff00ff; }
+  60% { text-shadow: 0 0 15px #00ffcc, 0 0 30px #ff00ff; }
+  100% { text-shadow: 0 0 15px #00ffcc, 0 0 30px #ff00ff; }
 }
