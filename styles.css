@@ -5,93 +5,81 @@
 }
 
 body {
-  overflow: hidden;
   background: #000;
-  color: #00ffcc;
-  font-family: 'Courier New', Courier, monospace;
+  overflow: hidden;
 }
 
-#scene-container {
-  position: absolute;
-  top: 0;
-  left: 0;
+.space {
+  position: relative;
   width: 100vw;
   height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
-.overlay {
+.black-hole {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, #000 40%, #1a1a1a 70%, #333 100%);
+  border-radius: 50%;
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
+  animation: swirl 10s infinite linear;
+}
+
+@keyframes swirl {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.portals {
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  animation: orbit 20s infinite linear;
+}
+
+.portal {
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  background: radial-gradient(circle, #00ffcc, transparent);
+  border-radius: 50%;
   text-align: center;
-  z-index: 1;
-  pointer-events: none;
-}
-
-.overlay h1 {
-  font-size: 3.5rem;
-  text-shadow: 0 0 15px #00ffcc, 0 0 30px #ff00ff;
-  animation: glitch 1.5s infinite;
-}
-
-.overlay p {
-  font-size: 1.3rem;
-  margin-top: 15px;
-  color: #ff00ff;
-}
-
-.easter-egg {
-  display: none;
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: rgba(0, 0, 0, 0.9);
-  padding: 25px;
-  border: 2px solid #00ffcc;
-  box-shadow: 0 0 25px #00ffcc, inset 0 0 10px #ff00ff;
-  z-index: 2;
-}
-
-.easter-egg h2 {
-  color: #00ffcc;
-  text-shadow: 0 0 10px #00ffcc;
-}
-
-.easter-egg p {
-  color: #ff00ff;
-  margin: 10px 0;
-}
-
-.easter-egg ul {
-  list-style: none;
-  margin: 15px 0;
-}
-
-.easter-egg a {
-  color: #00ffcc;
+  line-height: 50px;
+  color: #fff;
   text-decoration: none;
-  transition: color 0.3s;
+  font-family: 'Courier New', monospace;
+  font-size: 0.8rem;
+  opacity: 0.7;
+  transition: transform 0.3s, opacity 0.3s;
 }
 
-.easter-egg a:hover {
-  color: #ff00ff;
+.portal:hover {
+  transform: scale(1.2);
+  opacity: 1;
 }
 
-.easter-egg button {
-  background: #ff00ff;
-  border: none;
-  padding: 10px 20px;
-  color: #000;
-  cursor: pointer;
-  box-shadow: 0 0 10px #ff00ff;
+.portal:nth-child(1) {
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
-@keyframes glitch {
-  0% { text-shadow: 0 0 15px #00ffcc, 0 0 30px #ff00ff; }
-  20% { text-shadow: 3px 3px 0 #ff00ff, -3px -3px 0 #00ffcc; }
-  40% { text-shadow: -2px 2px 0 #00ffcc, 2px -2px 0 #ff00ff; }
-  60% { text-shadow: 0 0 15px #00ffcc, 0 0 30px #ff00ff; }
-  100% { text-shadow: 0 0 15px #00ffcc, 0 0 30px #ff00ff; }
+.portal:nth-child(2) {
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+}
+
+.portal:nth-child(3) {
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+@keyframes orbit {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
