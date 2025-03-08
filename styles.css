@@ -1,0 +1,86 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  overflow: hidden;
+  background: #000;
+  color: #00ffcc;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+#scene-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+}
+
+.overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  z-index: 1;
+}
+
+.overlay h1 {
+  font-size: 3rem;
+  text-shadow: 0 0 10px #00ffcc;
+  animation: glitch 2s infinite;
+}
+
+.overlay p {
+  font-size: 1.2rem;
+  margin-top: 10px;
+  color: #ff00ff;
+}
+
+.easter-egg {
+  display: none;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.8);
+  padding: 20px;
+  border: 2px solid #00ffcc;
+  box-shadow: 0 0 20px #00ffcc;
+  z-index: 2;
+}
+
+.easter-egg h2 {
+  color: #00ffcc;
+}
+
+.easter-egg p {
+  color: #ff00ff;
+}
+
+.easter-egg ul {
+  list-style: none;
+  margin: 10px 0;
+}
+
+.easter-egg a {
+  color: #00ffcc;
+  text-decoration: none;
+}
+
+.easter-egg button {
+  background: #ff00ff;
+  border: none;
+  padding: 10px;
+  color: #000;
+  cursor: pointer;
+}
+
+@keyframes glitch {
+  0% { text-shadow: 0 0 10px #00ffcc; }
+  50% { text-shadow: 5px 5px 0 #ff00ff, -5px -5px 0 #00ffcc; }
+  100% { text-shadow: 0 0 10px #00ffcc; }
+}
