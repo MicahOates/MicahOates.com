@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Merch Tool - Into the Void</title>
+  <link rel="stylesheet" href="pages.css">
+</head>
+<body>
+  <div class="page-content">
+    <h1>Grand Exchange Merch Tool</h1>
+    <p>Find profitable items to trade in Old School RuneScape.</p>
+    <form id="merch-form">
+      <label for="budget">Budget (GP):</label>
+      <input type="number" id="budget" name="budget" required>
+      <label for="profit-margin">Profit Margin (%):</label>
+      <input type="number" id="profit-margin" name="profit-margin" required>
+      <button type="submit">Analyze Market</button>
+    </form>
+    <div id="results">
+      <table>
+        <thead>
+          <tr>
+            <th>Item Name</th>
+            <th>Buy Price</th>
+            <th>Sell Price</th>
+            <th>Profit</th>
+            <th>Trend</th>
+          </tr>
+        </thead>
+        <tbody id="results-body"></tbody>
+      </table>
+    </div>
+    <a href="index.html" class="back-link">Return to Void</a>
+  </div>
+  <script src="merch-tool.js"></script>
+</body>
+</html>
