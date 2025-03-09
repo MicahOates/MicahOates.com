@@ -2669,11 +2669,11 @@ const app = {
     },
     
     initPostProcessing() {
-        // Create composer
-        this.composer = new THREE.EffectComposer(this.renderer);
+        // Create composer using the imported EffectComposer
+        this.composer = new EffectComposer(this.renderer);
         
         // Add render pass
-        const renderPass = new THREE.RenderPass(this.scene, this.camera);
+        const renderPass = new RenderPass(this.scene, this.camera);
         this.composer.addPass(renderPass);
         
         // Only add bloom if device can handle it
@@ -2683,8 +2683,8 @@ const app = {
             const bloomRadius = this.config.devicePerformance === 'high' ? 0.7 : 0.5;
             const bloomThreshold = 0.2;
             
-            const bloomPass = new THREE.UnrealBloomPass(
-                new THREE.Vector2(this.sizes.width, this.sizes.height),
+            const bloomPass = new UnrealBloomPass(
+                new THREE.Vector2(window.innerWidth, window.innerHeight),
                 bloomStrength,
                 bloomRadius,
                 bloomThreshold
