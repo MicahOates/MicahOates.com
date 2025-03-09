@@ -1,3 +1,5 @@
+import * as THREE from 'three';
+
 /**
  * UIController - Handles client-side UI elements and interaction with the 3D UI Manager
  */
@@ -34,6 +36,30 @@ export class UIController {
         // Mouse activity tracking
         this.mouseIdleTimer = null;
         this.mouseIdleDelay = 5000; // 5 seconds
+        
+        // DOM Elements
+        this.dataInput = null;
+        this.themeToggle = null;
+        this.orbsContainer = null;
+        
+        // State
+        this.isInputActive = false;
+        this.currentTheme = localStorage.getItem('theme') || 'dark';
+        
+        // Touch support
+        this.touchStartX = 0;
+        this.touchStartY = 0;
+        this.lastTouchTime = 0;
+        this.isTouching = false;
+        this.touchTimeout = null;
+        
+        // Gestures
+        this.isGestureInProgress = false;
+        this.pinchStartDistance = 0;
+        this.lastPinchDistance = 0;
+        
+        // Mobile detection
+        this.isMobile = this.detectMobile();
     }
     
     /**
@@ -44,6 +70,20 @@ export class UIController {
         this.setupEventListeners();
         this.loadInitialContent();
         this.showWelcomeMessage();
+        
+        // Get DOM elements
+        this.dataInput = document.getElementById('data-input');
+        this.themeToggle = document.getElementById('theme-toggle');
+        this.orbsContainer = document.getElementById('orbs');
+        
+        // Apply initial theme
+        this.applyTheme(this.currentTheme);
+        
+        // Add mobile-specific class if needed
+        if (this.isMobile) {
+            document.body.classList.add('mobile-device');
+            this.setupMobileOptimizations();
+        }
     }
     
     /**
@@ -431,6 +471,31 @@ export class UIController {
         
         // Info button
         this.infoButton.addEventListener('click', this.handleInfoButtonClick);
+        
+        // Theme toggle
+        if (this.themeToggle) {
+            this.themeToggle.addEventListener('click', () => this.toggleTheme());
+        }
+        
+        // Data input field
+        if (this.dataInput) {
+            this.dataInput.addEventListener('focus', () => this.handleInputFocus());
+            this.dataInput.addEventListener('blur', () => this.handleInputBlur());
+            this.dataInput.addEventListener('keydown', (e) => this.handleInputKeydown(e));
+        }
+        
+        // Touch events for mobile interactions
+        document.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: false });
+        document.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: false });
+        document.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: false });
+        
+        // Add double-tap handler for mobile devices
+        if (this.isMobile) {
+            document.addEventListener('click', this.handleClick.bind(this));
+        }
+        
+        // Listen for keyboard shortcuts
+        window.addEventListener('keydown', this.handleKeyboardShortcuts.bind(this));
     }
     
     /**
@@ -722,9 +787,8 @@ vec3 calculateLensing(vec3 rayDir, vec3 blackHolePos, float mass) {
     /**
      * Update method called on each frame
      */
-    update() {
-        // Update any animated UI elements here
-        // This method is called from the main loop
+    update(time) {
+        // Update any animations or time-based UI elements
     }
     
     /**
@@ -746,6 +810,385 @@ vec3 calculateLensing(vec3 rayDir, vec3 blackHolePos, float mass) {
         // Remove DOM elements
         if (this.container && this.container.parentNode) {
             this.container.parentNode.removeChild(this.container);
+        }
+    }
+    
+    /**
+     * Set up mobile-specific optimizations
+     */
+    setupMobileOptimizations() {
+        // Create mobile menu button if not exists
+        if (!document.getElementById('mobile-menu-toggle')) {
+            const menuToggle = document.createElement('button');
+            menuToggle.id = 'mobile-menu-toggle';
+            menuToggle.innerHTML = `<span></span><span></span><span></span>`;
+            menuToggle.setAttribute('aria-label', 'Toggle navigation menu');
+            document.body.appendChild(menuToggle);
+            
+            // Add event listener
+            menuToggle.addEventListener('click', () => {
+                document.body.classList.toggle('menu-open');
+                // Create section open sound if available
+                if (this.app.audioManager && this.app.audioManager.createSectionOpenSound) {
+                    this.app.audioManager.createSectionOpenSound();
+                }
+            });
+        }
+        
+        // Create touch hint element if not exists
+        if (!document.getElementById('touch-hint')) {
+            const touchHint = document.createElement('div');
+            touchHint.id = 'touch-hint';
+            touchHint.className = 'fade-in';
+            touchHint.innerHTML = `
+                <div class="hint-container">
+                    <div class="hint-icon">👆</div>
+                    <div class="hint-text">Tap to interact<br>Pinch to zoom</div>
+                </div>
+            `;
+            document.body.appendChild(touchHint);
+            
+            // Remove after 5 seconds
+            setTimeout(() => {
+                touchHint.classList.add('fade-out');
+                setTimeout(() => {
+                    if (touchHint.parentNode) {
+                        touchHint.parentNode.removeChild(touchHint);
+                    }
+                }, 1000);
+            }, 5000);
+        }
+    }
+    
+    /**
+     * Detect if the device is mobile
+     */
+    detectMobile() {
+        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+               (window.matchMedia && window.matchMedia('(max-width: 768px)').matches);
+    }
+    
+    /**
+     * Handle touch start event
+     * @param {TouchEvent} e - Touch event
+     */
+    handleTouchStart(e) {
+        if (e.touches.length === 1) {
+            // Single touch - start tracking for gestures
+            this.touchStartX = e.touches[0].clientX;
+            this.touchStartY = e.touches[0].clientY;
+            this.isTouching = true;
+            
+            // Check for double tap
+            const now = new Date().getTime();
+            const timeSinceLastTouch = now - this.lastTouchTime;
+            
+            if (timeSinceLastTouch < 300) {
+                // Double tap detected
+                this.handleDoubleTap(e);
+            }
+            
+            this.lastTouchTime = now;
+        } else if (e.touches.length === 2) {
+            // Pinch zoom gesture start
+            this.isGestureInProgress = true;
+            this.pinchStartDistance = this.getPinchDistance(e);
+            this.lastPinchDistance = this.pinchStartDistance;
+            
+            // Prevent default to avoid page zooming
+            if (!this.isInputElementTarget(e)) {
+                e.preventDefault();
+            }
+        }
+    }
+    
+    /**
+     * Handle touch move event
+     * @param {TouchEvent} e - Touch event
+     */
+    handleTouchMove(e) {
+        if (!this.isTouching) return;
+        
+        if (e.touches.length === 2 && this.isGestureInProgress) {
+            // Handle pinch gesture for zooming
+            const currentDistance = this.getPinchDistance(e);
+            const delta = currentDistance - this.lastPinchDistance;
+            
+            // Apply zoom if distance changed enough
+            if (Math.abs(delta) > 5 && this.app.sceneManager && this.app.sceneManager.controls) {
+                const zoomDelta = delta * 0.01;
+                const controls = this.app.sceneManager.controls;
+                
+                // Get current distance
+                let distance = controls.getDistance();
+                
+                // Apply zoom change
+                distance -= zoomDelta * distance;
+                
+                // Clamp to min/max
+                distance = Math.max(controls.minDistance, Math.min(controls.maxDistance, distance));
+                
+                // Apply new distance
+                controls.dollyTo(distance, false);
+            }
+            
+            this.lastPinchDistance = currentDistance;
+            
+            // Prevent default to avoid page zooming
+            if (!this.isInputElementTarget(e)) {
+                e.preventDefault();
+            }
+        } else if (e.touches.length === 1 && !this.isGestureInProgress) {
+            // Single finger drag - only if not touching an input
+            if (!this.isInputElementTarget(e)) {
+                const touchX = e.touches[0].clientX;
+                const touchY = e.touches[0].clientY;
+                
+                // Calculate drag distance
+                const deltaX = touchX - this.touchStartX;
+                const deltaY = touchY - this.touchStartY;
+                
+                // If dragged far enough, handle rotation
+                if (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) {
+                    if (this.app.sceneManager && this.app.sceneManager.controls) {
+                        // Manual orbit control
+                        const controls = this.app.sceneManager.controls;
+                        controls.rotateLeft(deltaX * 0.002);
+                        controls.rotateUp(deltaY * 0.002);
+                        
+                        // Update touch start position
+                        this.touchStartX = touchX;
+                        this.touchStartY = touchY;
+                    }
+                }
+            }
+        }
+    }
+    
+    /**
+     * Handle touch end event
+     * @param {TouchEvent} e - Touch event
+     */
+    handleTouchEnd(e) {
+        this.isTouching = false;
+        this.isGestureInProgress = false;
+        
+        // Clear any touch timeout
+        if (this.touchTimeout) {
+            clearTimeout(this.touchTimeout);
+            this.touchTimeout = null;
+        }
+    }
+    
+    /**
+     * Handle double tap
+     * @param {TouchEvent} e - Touch event
+     */
+    handleDoubleTap(e) {
+        // Don't process if touching input elements
+        if (this.isInputElementTarget(e)) return;
+        
+        // Get tap location
+        const touch = e.touches[0];
+        const x = touch.clientX;
+        const y = touch.clientY;
+        
+        // Check if tapping on an orb
+        const orbElement = this.findTouchedOrb(x, y);
+        if (orbElement) {
+            // Simulate a click on the orb
+            orbElement.click();
+            return;
+        }
+        
+        // Otherwise, reset camera to default position with animation
+        if (this.app.sceneManager) {
+            this.app.sceneManager.animateCameraTo(
+                new THREE.Vector3(0, 0, 40), // Default position
+                new THREE.Vector3(0, 0, 0),  // Look at center
+                1.0                          // Animation duration
+            );
+        }
+    }
+    
+    /**
+     * Handle normal click (used for detecting double clicks on mobile)
+     * @param {MouseEvent} e - Mouse event
+     */
+    handleClick(e) {
+        const now = new Date().getTime();
+        const timeSinceLastTouch = now - this.lastTouchTime;
+        
+        // Not touched recently - update last touch time
+        if (timeSinceLastTouch > 500) {
+            this.lastTouchTime = now;
+        }
+    }
+    
+    /**
+     * Find which orb element was touched
+     * @param {number} x - Touch X coordinate
+     * @param {number} y - Touch Y coordinate
+     * @returns {Element|null} - The touched orb element or null
+     */
+    findTouchedOrb(x, y) {
+        if (!this.orbsContainer) return null;
+        
+        const orbs = this.orbsContainer.querySelectorAll('.orb');
+        for (const orb of orbs) {
+            const rect = orb.getBoundingClientRect();
+            if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+                return orb;
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Get distance between two touch points
+     * @param {TouchEvent} e - Touch event
+     * @returns {number} - Distance between touch points
+     */
+    getPinchDistance(e) {
+        if (e.touches.length < 2) return 0;
+        
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+    
+    /**
+     * Check if touch/click is on an input element
+     * @param {Event} e - Touch or mouse event
+     * @returns {boolean} - True if target is an input element
+     */
+    isInputElementTarget(e) {
+        const target = e.target;
+        return target.tagName === 'INPUT' || 
+               target.tagName === 'TEXTAREA' || 
+               target.tagName === 'SELECT' || 
+               target.tagName === 'BUTTON' ||
+               target.classList.contains('close-btn');
+    }
+    
+    /**
+     * Handle keyboard shortcuts
+     * @param {KeyboardEvent} e - Keyboard event
+     */
+    handleKeyboardShortcuts(e) {
+        // Ignore if in an input field
+        if (document.activeElement.tagName === 'INPUT' || 
+            document.activeElement.tagName === 'TEXTAREA') {
+            return;
+        }
+        
+        // Theme toggle with 'T' key
+        if (e.key === 't' || e.key === 'T') {
+            this.toggleTheme();
+        }
+        
+        // ESC key to close active sections
+        if (e.key === 'Escape') {
+            const activeSection = document.querySelector('.content-section.active');
+            if (activeSection) {
+                const closeBtn = activeSection.querySelector('.close-btn');
+                if (closeBtn) {
+                    closeBtn.click();
+                }
+            }
+        }
+        
+        // Number keys 1-4 for navigation
+        if (e.key >= '1' && e.key <= '4' && this.orbsContainer) {
+            const orbs = this.orbsContainer.querySelectorAll('.orb');
+            const index = parseInt(e.key) - 1;
+            if (orbs[index]) {
+                orbs[index].click();
+            }
+        }
+    }
+    
+    /**
+     * Toggle between light and dark themes
+     */
+    toggleTheme() {
+        const newTheme = this.currentTheme === 'dark' ? 'light' : 'dark';
+        this.applyTheme(newTheme);
+        
+        // Store theme preference
+        localStorage.setItem('theme', newTheme);
+        this.currentTheme = newTheme;
+    }
+    
+    /**
+     * Apply theme to DOM and app
+     */
+    applyTheme(theme) {
+        if (theme === 'light') {
+            document.body.classList.add('light-mode');
+        } else {
+            document.body.classList.remove('light-mode');
+        }
+        
+        // Update app visualization if available
+        if (this.app && this.app.updateVisualsForTheme) {
+            this.app.updateVisualsForTheme(theme);
+        }
+    }
+    
+    /**
+     * Handle input field focus
+     */
+    handleInputFocus() {
+        this.isInputActive = true;
+        
+        // Disable orbit controls temporarily when typing
+        if (this.app.sceneManager && this.app.sceneManager.controls) {
+            this.app.sceneManager.controls.enabled = false;
+        }
+    }
+    
+    /**
+     * Handle input field blur
+     */
+    handleInputBlur() {
+        this.isInputActive = false;
+        
+        // Re-enable orbit controls
+        if (this.app.sceneManager && this.app.sceneManager.controls) {
+            this.app.sceneManager.controls.enabled = true;
+        }
+    }
+    
+    /**
+     * Handle keyboard input on data input field
+     */
+    handleInputKeydown(e) {
+        if (e.key === 'Enter' && this.dataInput.value.trim() !== '') {
+            const input = this.dataInput.value.trim();
+            
+            // Process input
+            this.processUserInput(input);
+            
+            // Clear the input field
+            this.dataInput.value = '';
+        }
+    }
+    
+    /**
+     * Process user input from the data field
+     */
+    processUserInput(input) {
+        // Create interactive particle effect if available
+        if (this.app.particleSystem && this.app.particleSystem.createDataParticles) {
+            this.app.particleSystem.createDataParticles(input);
+        }
+        
+        // Create data input sound if available
+        if (this.app.audioManager && this.app.audioManager.createDataInputSound) {
+            this.app.audioManager.createDataInputSound(input.length);
         }
     }
 } 

@@ -309,36 +309,101 @@ export class SceneManager {
     }
     
     /**
-     * Move camera to position with animation
+     * Animate camera to a new position with smooth transitions
+     * @param {THREE.Vector3} targetPosition - Target camera position
+     * @param {THREE.Vector3} targetLookAt - Target look-at point
+     * @param {number} duration - Animation duration in seconds
+     * @param {string} easing - Easing function to use (default: 'easeInOutCubic')
+     * @param {boolean} followPath - Whether to follow a curved path instead of linear
      */
-    animateCameraTo(targetPosition, targetLookAt, duration = 2.0) {
-        const startPosition = this.camera.position.clone();
-        const startTime = this.app.clock.getElapsedTime();
-        const startLookAt = this.controls ? this.controls.target.clone() : new THREE.Vector3(0, 0, 0);
+    animateCameraTo(targetPosition, targetLookAt, duration = 2.0, easing = 'easeInOutCubic', followPath = true) {
+        if (!this.camera || !this.controls) return;
         
+        // Store animation state
+        const startTime = performance.now();
+        const endTime = startTime + duration * 1000;
+        
+        // Store initial positions
+        const startPosition = this.camera.position.clone();
+        const startTarget = this.controls.target.clone();
+        
+        // Create middle point for curved path if requested
+        let middlePosition = null;
+        if (followPath) {
+            // Create a midpoint by averaging positions and adding some height
+            middlePosition = new THREE.Vector3().addVectors(startPosition, targetPosition).multiplyScalar(0.5);
+            
+            // Add some height/offset to create an arc
+            const distance = startPosition.distanceTo(targetPosition);
+            middlePosition.y += distance * 0.2; // Arc height based on distance
+            
+            // Add slight offset to avoid perfectly straight lines
+            const offset = new THREE.Vector3(
+                (Math.random() - 0.5) * distance * 0.1,
+                0,
+                (Math.random() - 0.5) * distance * 0.1
+            );
+            middlePosition.add(offset);
+        }
+        
+        // Animation update function
         const updateCamera = () => {
-            const currentTime = this.app.clock.getElapsedTime();
-            const elapsed = currentTime - startTime;
-            const progress = Math.min(1.0, elapsed / duration);
+            const now = performance.now();
             
-            // Use easing function for smoother animation
-            const easeProgress = this.easeInOutCubic(progress);
+            // Calculate progress ratio (0 to 1)
+            let progress = (now - startTime) / (endTime - startTime);
             
-            // Interpolate position
-            const newX = startPosition.x + (targetPosition.x - startPosition.x) * easeProgress;
-            const newY = startPosition.y + (targetPosition.y - startPosition.y) * easeProgress;
-            const newZ = startPosition.z + (targetPosition.z - startPosition.z) * easeProgress;
+            // Clamp to 0-1 range
+            progress = Math.max(0, Math.min(1, progress));
             
-            // Interpolate look target
-            const newLookAtX = startLookAt.x + (targetLookAt.x - startLookAt.x) * easeProgress;
-            const newLookAtY = startLookAt.y + (targetLookAt.y - startLookAt.y) * easeProgress;
-            const newLookAtZ = startLookAt.z + (targetLookAt.z - startLookAt.z) * easeProgress;
+            // Apply easing function
+            let easedProgress;
+            switch (easing) {
+                case 'linear':
+                    easedProgress = progress;
+                    break;
+                case 'easeInQuad':
+                    easedProgress = progress * progress;
+                    break;
+                case 'easeOutQuad':
+                    easedProgress = progress * (2 - progress);
+                    break;
+                case 'easeOutCubic':
+                    easedProgress = 1 - Math.pow(1 - progress, 3);
+                    break;
+                case 'easeInOutCubic':
+                default:
+                    easedProgress = this.easeInOutCubic(progress);
+                    break;
+            }
             
-            // Update camera
-            this.setCameraPosition(newX, newY, newZ, newLookAtX, newLookAtY, newLookAtZ);
+            // Calculate new camera position
+            if (followPath && middlePosition) {
+                // Quadratic Bezier curve interpolation for smooth arc
+                const p0 = startPosition;
+                const p1 = middlePosition;
+                const p2 = targetPosition;
+                
+                // Quadratic Bezier formula: B(t) = (1-t)²P₀ + 2(1-t)tP₁ + t²P₂
+                const t = easedProgress;
+                const oneMinusT = 1 - t;
+                
+                this.camera.position.x = oneMinusT * oneMinusT * p0.x + 2 * oneMinusT * t * p1.x + t * t * p2.x;
+                this.camera.position.y = oneMinusT * oneMinusT * p0.y + 2 * oneMinusT * t * p1.y + t * t * p2.y;
+                this.camera.position.z = oneMinusT * oneMinusT * p0.z + 2 * oneMinusT * t * p1.z + t * t * p2.z;
+            } else {
+                // Simple linear interpolation
+                this.camera.position.lerpVectors(startPosition, targetPosition, easedProgress);
+            }
+            
+            // Calculate new look-at point
+            this.controls.target.lerpVectors(startTarget, targetLookAt, easedProgress);
+            
+            // Update controls and camera
+            this.controls.update();
             
             // Continue animation if not complete
-            if (progress < 1.0) {
+            if (progress < 1) {
                 requestAnimationFrame(updateCamera);
             }
         };
@@ -348,10 +413,178 @@ export class SceneManager {
     }
     
     /**
-     * Cubic easing function for smooth camera movement
+     * Ease in-out cubic function
+     * @param {number} t - Input between 0 and 1
+     * @returns {number} Eased value
      */
     easeInOutCubic(t) {
-        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        return t < 0.5
+            ? 4 * t * t * t
+            : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    }
+    
+    /**
+     * Orbit camera around a point
+     * @param {THREE.Vector3} center - Point to orbit around
+     * @param {number} radius - Orbit radius
+     * @param {number} duration - Orbit duration in seconds (full circle)
+     * @param {number} height - Height relative to center
+     * @param {boolean} clockwise - Orbit direction
+     */
+    orbitCamera(center = new THREE.Vector3(0, 0, 0), radius = 40, duration = 20, height = 5, clockwise = true) {
+        if (!this.camera || !this.controls) return;
+        
+        // Check if there's an existing orbit animation
+        if (this.orbitAnimation) {
+            cancelAnimationFrame(this.orbitAnimation.id);
+            this.orbitAnimation = null;
+        }
+        
+        // Calculate angular velocity (radians per second)
+        const angularSpeed = (Math.PI * 2) / duration * (clockwise ? -1 : 1);
+        
+        // Store initial angle based on current position
+        const startPos = this.camera.position.clone().sub(center);
+        const initialAngle = Math.atan2(startPos.z, startPos.x);
+        
+        // Store animation state
+        const startTime = performance.now() / 1000; // Convert to seconds
+        
+        // Create orbit animation object
+        this.orbitAnimation = {
+            center: center.clone(),
+            radius: radius,
+            height: height,
+            active: true
+        };
+        
+        // Animation update function
+        const updateOrbit = () => {
+            if (!this.orbitAnimation || !this.orbitAnimation.active) return;
+            
+            // Calculate elapsed time in seconds
+            const elapsed = performance.now() / 1000 - startTime;
+            
+            // Calculate current angle
+            const angle = initialAngle + angularSpeed * elapsed;
+            
+            // Calculate new camera position
+            const x = center.x + radius * Math.cos(angle);
+            const z = center.z + radius * Math.sin(angle);
+            const y = center.y + height;
+            
+            // Update camera position
+            this.camera.position.set(x, y, z);
+            
+            // Look at the center point
+            this.controls.target.copy(center);
+            this.controls.update();
+            
+            // Continue animation loop
+            this.orbitAnimation.id = requestAnimationFrame(updateOrbit);
+        };
+        
+        // Start animation
+        updateOrbit();
+    }
+    
+    /**
+     * Stop any ongoing camera orbit animation
+     */
+    stopCameraOrbit() {
+        if (this.orbitAnimation) {
+            this.orbitAnimation.active = false;
+            if (this.orbitAnimation.id) {
+                cancelAnimationFrame(this.orbitAnimation.id);
+            }
+            this.orbitAnimation = null;
+        }
+    }
+    
+    /**
+     * Create a smooth cinematic fly-through of key points
+     * @param {Array<Object>} waypoints - Array of waypoints with position, lookAt, and duration properties
+     * @param {boolean} loop - Whether to loop the fly-through
+     */
+    createCameraFlythrough(waypoints, loop = false) {
+        if (!waypoints || waypoints.length < 2) return;
+        
+        // Clone waypoints to prevent modification of original
+        const points = waypoints.map(wp => ({
+            position: new THREE.Vector3().copy(wp.position || new THREE.Vector3(0, 0, 40)),
+            lookAt: new THREE.Vector3().copy(wp.lookAt || new THREE.Vector3(0, 0, 0)),
+            duration: wp.duration || 2.0,
+            pause: wp.pause || 0
+        }));
+        
+        let currentIndex = 0;
+        let paused = false;
+        let pauseEndTime = 0;
+        
+        // Advance to next waypoint
+        const goToNextWaypoint = () => {
+            currentIndex++;
+            
+            // Check if we've completed the sequence
+            if (currentIndex >= points.length) {
+                if (loop) {
+                    // Start over for looping
+                    currentIndex = 0;
+                    startNextTransition();
+                } else {
+                    // End the sequence
+                    return;
+                }
+            } else {
+                startNextTransition();
+            }
+        };
+        
+        // Start transition to current waypoint
+        const startNextTransition = () => {
+            const current = points[currentIndex];
+            
+            // Check if there's a pause before this waypoint
+            if (current.pause > 0) {
+                paused = true;
+                pauseEndTime = performance.now() + current.pause * 1000;
+                
+                // Schedule end of pause
+                setTimeout(() => {
+                    paused = false;
+                    
+                    // Get next waypoint (or wrap around if looping)
+                    const nextIndex = (currentIndex + 1) % points.length;
+                    
+                    // Start camera transition
+                    this.animateCameraTo(
+                        current.position,
+                        current.lookAt,
+                        current.duration,
+                        'easeInOutCubic',
+                        true
+                    );
+                    
+                    // Schedule next waypoint
+                    setTimeout(goToNextWaypoint, current.duration * 1000);
+                }, current.pause * 1000);
+            } else {
+                // No pause, start transition immediately
+                this.animateCameraTo(
+                    current.position,
+                    current.lookAt,
+                    current.duration,
+                    'easeInOutCubic',
+                    true
+                );
+                
+                // Schedule next waypoint
+                setTimeout(goToNextWaypoint, current.duration * 1000);
+            }
+        };
+        
+        // Start the sequence
+        startNextTransition();
     }
     
     /**
@@ -398,6 +631,133 @@ export class SceneManager {
             this.scene.remove(this.nebulaBackground);
             this.nebulaBackground.geometry.dispose();
             this.nebulaBackground.material.dispose();
+        }
+    }
+    
+    /**
+     * Set quality level for scene elements
+     * @param {string} qualityLevel - 'low', 'medium', or 'high'
+     */
+    setQualityLevel(qualityLevel) {
+        // Update starfield density based on quality
+        if (this.starfield) {
+            const baseStarCount = 2000;
+            let starMultiplier;
+            
+            switch (qualityLevel) {
+                case 'low':
+                    starMultiplier = 0.3;
+                    break;
+                case 'medium':
+                    starMultiplier = 0.7;
+                    break;
+                case 'high':
+                default:
+                    starMultiplier = 1.0;
+                    break;
+            }
+            
+            const density = this.options.starDensity * starMultiplier;
+            
+            // If star count would change significantly, recreate starfield
+            const newStarCount = Math.round(baseStarCount * density);
+            const currentStarCount = this.starfield.geometry.attributes.position.count;
+            
+            // Only recreate if significant difference to avoid performance spikes
+            if (Math.abs(newStarCount - currentStarCount) / currentStarCount > 0.25) {
+                // Store current starfield properties
+                const oldStarfield = this.starfield;
+                
+                // Remove old starfield
+                this.scene.remove(this.starfield);
+                
+                // Store current shader material uniforms
+                const uniforms = oldStarfield.userData.shader.uniforms;
+                
+                // Recreate with new density
+                this.options.starDensity = density;
+                this.createStarfield();
+                
+                // Copy time uniform from old material to maintain animation
+                this.starfield.userData.shader.uniforms.time.value = uniforms.time.value;
+                
+                // Dispose old geometry and material
+                oldStarfield.geometry.dispose();
+                oldStarfield.material.dispose();
+            }
+        }
+        
+        // Adjust nebula quality if it exists
+        if (this.nebulaBackground && this.nebulaBackground.userData.shader) {
+            const material = this.nebulaBackground.userData.shader;
+            
+            switch (qualityLevel) {
+                case 'low':
+                    material.uniforms.detailLevel.value = 2; // Fewer detail iterations
+                    material.uniforms.cloudDensity.value = 0.4; // Reduce density
+                    break;
+                case 'medium':
+                    material.uniforms.detailLevel.value = 3;
+                    material.uniforms.cloudDensity.value = 0.6;
+                    break;
+                case 'high':
+                    material.uniforms.detailLevel.value = 5; // More detail iterations
+                    material.uniforms.cloudDensity.value = 0.8; // Higher density
+                    break;
+            }
+        }
+        
+        // Adjust camera settings based on quality
+        if (this.controls) {
+            switch (qualityLevel) {
+                case 'low':
+                    this.controls.enableDamping = false; // Disable damping on low-end devices
+                    break;
+                case 'medium':
+                case 'high':
+                    this.controls.enableDamping = true;
+                    this.controls.dampingFactor = qualityLevel === 'high' ? 0.05 : 0.1;
+                    break;
+            }
+        }
+    }
+    
+    /**
+     * Update colors based on theme
+     * @param {Object} colors - Color palette 
+     */
+    updateColors(colors) {
+        // Update scene background color
+        if (this.scene) {
+            this.scene.background = new THREE.Color(colors.background);
+        }
+        
+        // Update starfield colors
+        if (this.starfield && this.starfield.userData.shader) {
+            const material = this.starfield.userData.shader;
+            const primaryColor = new THREE.Color(colors.primary);
+            const secondaryColor = new THREE.Color(colors.secondary);
+            
+            // Calculate a blended star color (slightly blueish)
+            const starColor = new THREE.Color().lerpColors(
+                new THREE.Color(0x80a0ff), // Base blue star color
+                primaryColor,
+                0.3 // Blend amount
+            );
+            
+            // Update color uniforms
+            material.uniforms.baseColor.value = starColor;
+        }
+        
+        // Update nebula background colors
+        if (this.nebulaBackground && this.nebulaBackground.userData.shader) {
+            const material = this.nebulaBackground.userData.shader;
+            
+            // Update nebula colors with theme colors
+            material.uniforms.colorPrimary.value = new THREE.Color(colors.primary);
+            material.uniforms.colorSecondary.value = new THREE.Color(colors.secondary);
+            material.uniforms.colorTertiary.value = new THREE.Color(colors.tertiary);
+            material.uniforms.colorBackground.value = new THREE.Color(colors.background);
         }
     }
 } 
