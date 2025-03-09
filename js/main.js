@@ -45,6 +45,21 @@ const app = {
         this.renderer.setSize(this.sizes.width, this.sizes.height);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         
+        // Initialize parameters before component creation
+        // This ensures blackHoleParams exists before any component tries to access it
+        this.blackHoleParams = {
+            radius: this.config.blackHoleRadius,
+            intensity: 1.5,
+            rotationSpeed: 1.0,
+            accretionDiskSize: this.config.accretionDiskRadius,
+            accretionBrightness: 1.0,
+            lensStrength: 10.0,
+            hawkingIntensity: 1.0,
+            timeDilationFactor: 1.0,
+            lensingIntensity: 1.0,
+            frameDraggingFactor: 1.0
+        };
+        
         // Initialize audio
         this.initAudio();
         
@@ -608,31 +623,31 @@ const app = {
     },
     
     playControlChangeSound() {
+        if (!this.audioInitialized || this.audioMuted || !this.audioContext) return;
+        
         // Play a subtle sound when controls are changed
-        if (this.audioContext && this.audioContext.state === 'running') {
-            const oscillator = this.audioContext.createOscillator();
-            oscillator.type = 'sine';
-            oscillator.frequency.value = 440 + Math.random() * 440;
-            
-            const gain = this.audioContext.createGain();
-            gain.gain.value = 0;
-            
-            oscillator.connect(gain);
-            gain.connect(this.masterGain);
-            
-            const now = this.audioContext.currentTime;
-            oscillator.start(now);
-            gain.gain.setValueAtTime(0, now);
-            gain.gain.linearRampToValueAtTime(0.03, now + 0.01);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-            
-            // Clean up
-            setTimeout(() => {
-                oscillator.stop();
-                oscillator.disconnect();
-                gain.disconnect();
-            }, 200);
-        }
+        const oscillator = this.audioContext.createOscillator();
+        oscillator.type = 'sine';
+        oscillator.frequency.value = 440 + Math.random() * 440;
+        
+        const gain = this.audioContext.createGain();
+        gain.gain.value = 0;
+        
+        oscillator.connect(gain);
+        gain.connect(this.masterGain);
+        
+        const now = this.audioContext.currentTime;
+        oscillator.start(now);
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.03, now + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+        
+        // Clean up
+        setTimeout(() => {
+            oscillator.stop();
+            oscillator.disconnect();
+            gain.disconnect();
+        }, 200);
     },
     
     initTutorialSystem() {
@@ -1276,27 +1291,62 @@ const app = {
     
     // Audio initialization and effects
     initAudio() {
-        // Create audio context
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        this.audioContext = new AudioContext();
+        // Don't create AudioContext immediately
+        // It will be created on user interaction
+        this.audioInitialized = false;
+        this.audioMuted = localStorage.getItem('audioMuted') === 'true';
         
-        // Master volume control
-        this.masterGain = this.audioContext.createGain();
-        this.masterGain.gain.value = 0.5; // Start at 50% volume
-        this.masterGain.connect(this.audioContext.destination);
+        // Add an audio initialization flag
+        this.waitingForUserInteraction = true;
         
-        // Create oscillators for ambient sound
-        this.setupAmbientSound();
+        // Add event listeners to initialize audio on first user interaction
+        const initializeAudioOnInteraction = () => {
+            if (this.waitingForUserInteraction) {
+                this.createAudioContext();
+                this.waitingForUserInteraction = false;
+                
+                // Remove event listeners once audio is initialized
+                document.removeEventListener('click', initializeAudioOnInteraction);
+                document.removeEventListener('touchstart', initializeAudioOnInteraction);
+                document.removeEventListener('keydown', initializeAudioOnInteraction);
+            }
+        };
         
-        // Create effects for interactions
-        this.setupInteractionSounds();
+        // Add event listeners for common user interactions
+        document.addEventListener('click', initializeAudioOnInteraction);
+        document.addEventListener('touchstart', initializeAudioOnInteraction);
+        document.addEventListener('keydown', initializeAudioOnInteraction);
         
-        // Add mute toggle button
+        // Add audio controls
         this.addAudioControls();
     },
     
+    // New method to create AudioContext after user interaction
+    createAudioContext() {
+        try {
+            // Create audio context
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Set up audio components
+            this.setupAmbientSound();
+            this.setupInteractionSounds();
+            
+            // Mark audio as initialized
+            this.audioInitialized = true;
+            
+            console.log('Audio initialized after user interaction');
+        } catch (error) {
+            console.error('Error initializing audio:', error);
+        }
+    },
+    
     setupAmbientSound() {
-        // Create a complex ambient soundscape for the black hole
+        if (!this.audioContext) return;
+        
+        // Master volume control
+        this.masterGain = this.audioContext.createGain();
+        this.masterGain.gain.value = this.audioMuted ? 0 : 0.5; // Set based on mute state
+        this.masterGain.connect(this.audioContext.destination);
         
         // Bass drone oscillator
         this.bassOscillator = this.audioContext.createOscillator();
@@ -1372,8 +1422,8 @@ const app = {
     },
     
     playAmbientSound() {
-        // Only start if audio context is not running
-        if (this.audioContext.state !== 'running') return;
+        // Check if audio is initialized before playing
+        if (!this.audioInitialized || this.audioMuted || !this.audioContext) return;
         
         const now = this.audioContext.currentTime;
         
@@ -1781,25 +1831,22 @@ const app = {
     },
     
     toggleAudio(audioToggle) {
-        // Toggle audio mute/unmute
-        const isMuted = audioToggle.classList.contains('muted');
+        if (this.waitingForUserInteraction) {
+            // Initialize audio context when user toggles audio
+            this.createAudioContext();
+            this.waitingForUserInteraction = false;
+        }
         
-        if (isMuted) {
-            // Unmute
-            audioToggle.classList.remove('muted');
-            this.masterGain.gain.value = 0.5;
-            localStorage.setItem('audioMuted', 'false');
-            
-            // Start audio if it hasn't started yet
-            if (this.audioContext.state === 'running' && !this.bassOscillator.started) {
-                this.playAmbientSound();
-                this.bassOscillator.started = true;
-            }
-        } else {
-            // Mute
-            audioToggle.classList.add('muted');
-            this.masterGain.gain.value = 0;
-            localStorage.setItem('audioMuted', 'true');
+        // Continue with existing toggle functionality
+        this.audioMuted = !this.audioMuted;
+        localStorage.setItem('audioMuted', this.audioMuted);
+        
+        // Update toggle button classes
+        audioToggle.classList.toggle('muted', this.audioMuted);
+        
+        // Resume audio context if unmuting
+        if (!this.audioMuted && this.audioContext && this.audioContext.state === 'suspended') {
+            this.audioContext.resume();
         }
     },
     
@@ -2146,6 +2193,22 @@ const app = {
         // Calculate black hole properties
         const horizonRadius = this.config.blackHoleRadius;
         const emissionRadius = horizonRadius * 1.1; // Just outside event horizon
+        
+        // Ensure blackHoleParams exists before accessing
+        if (!this.blackHoleParams) {
+            this.blackHoleParams = {
+                radius: this.config.blackHoleRadius,
+                intensity: 1.5,
+                rotationSpeed: 1.0,
+                accretionDiskSize: this.config.accretionDiskRadius,
+                accretionBrightness: 1.0,
+                lensStrength: 10.0,
+                hawkingIntensity: 1.0,
+                timeDilationFactor: 1.0,
+                lensingIntensity: 1.0,
+                frameDraggingFactor: 1.0
+            };
+        }
         
         // Initialize particles
         for (let i = 0; i < particleCount; i++) {
@@ -4744,6 +4807,22 @@ const app = {
         // Skip if disabled in config
         if (!this.config.timeDilationEnabled) return;
         
+        // Ensure blackHoleParams exists before accessing
+        if (!this.blackHoleParams) {
+            this.blackHoleParams = {
+                radius: this.config.blackHoleRadius,
+                intensity: 1.5,
+                rotationSpeed: 1.0,
+                accretionDiskSize: this.config.accretionDiskRadius,
+                accretionBrightness: 1.0,
+                lensStrength: 10.0,
+                hawkingIntensity: 1.0,
+                timeDilationFactor: 1.0,
+                lensingIntensity: 1.0,
+                frameDraggingFactor: 1.0
+            };
+        }
+        
         // Create geometry for time dilation field
         const ringCount = this.config.devicePerformance === 'low' ? 50 : 100;
         const segmentCount = this.config.devicePerformance === 'low' ? 64 : 128;
@@ -4969,6 +5048,22 @@ const app = {
         // Skip if disabled in config
         if (!this.config.lensingEnabled) return;
         
+        // Ensure blackHoleParams exists before accessing
+        if (!this.blackHoleParams) {
+            this.blackHoleParams = {
+                radius: this.config.blackHoleRadius,
+                intensity: 1.5,
+                rotationSpeed: 1.0,
+                accretionDiskSize: this.config.accretionDiskRadius,
+                accretionBrightness: 1.0,
+                lensStrength: 10.0,
+                hawkingIntensity: 1.0,
+                timeDilationFactor: 1.0,
+                lensingIntensity: 1.0,
+                frameDraggingFactor: 1.0
+            };
+        }
+        
         // Determine star count based on device performance
         const starCount = this.config.devicePerformance === 'low' ? 1000 : 3000;
         
@@ -5161,6 +5256,22 @@ const app = {
     createFrameDraggingEffect() {
         // Skip if disabled in config
         if (!this.config.frameDraggingEnabled) return;
+        
+        // Ensure blackHoleParams exists before accessing
+        if (!this.blackHoleParams) {
+            this.blackHoleParams = {
+                radius: this.config.blackHoleRadius,
+                intensity: 1.5,
+                rotationSpeed: 1.0,
+                accretionDiskSize: this.config.accretionDiskRadius,
+                accretionBrightness: 1.0,
+                lensStrength: 10.0,
+                hawkingIntensity: 1.0,
+                timeDilationFactor: 1.0,
+                lensingIntensity: 1.0,
+                frameDraggingFactor: 1.0
+            };
+        }
         
         // Create geometry for the frame dragging effect
         const segments = this.config.devicePerformance === 'low' ? 64 : 128;

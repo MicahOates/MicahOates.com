@@ -12,7 +12,6 @@
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="preload" href="css/styles.css" as="style">
     <link rel="preload" href="js/main.js" as="script">
-    <link rel="preload" href="https://cdn.jsdelivr.net/npm/three@0.174.0/build/three.min.js" as="script">
     
     <!-- SEO Meta Tags -->
     <meta name="keywords" content="Micah Oates, web developer, creative coder, interactive design, portfolio, WebGL, Three.js">
@@ -159,14 +158,14 @@
     </section>
 
     <!-- Scripts -->
-    <!-- Load Three.js first -->
+    <!-- Update Three.js loading to use recommended CDN and version -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.154.0/three.min.js"></script>
     
-    <!-- Then load post-processing modules from JSDelivr -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/examples/js/postprocessing/EffectComposer.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/examples/js/postprocessing/RenderPass.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <!-- Then load post-processing modules from the same CDN and version -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.154.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.154.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.154.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.154.0/examples/js/postprocessing/ShaderPass.js"></script>
     
     <!-- Load your main script last -->
     <script src="js/main.js"></script>
