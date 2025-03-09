@@ -36,7 +36,8 @@
     <!-- Styles and Fonts -->
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/font-fix.css">
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap">
+    
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAIKADAAQAAAABAAAAIAAAAACshmLzAAAB1klEQVRYCe1XQU7CQBTtFNqF4AkMN5Ab4M6wJNxAboA3gBvoCbgCegJvgDcg7kzcwRVlyaI8v9PptDOdMrTGmPiS5nf+n/n/v3n8mXZtm2w2sOINJPGHxkSEn9jgWbmkWqlQIKsSxUpvyVCnZJZOSXeDn7D9/bJP1CpliZKNPhZYJoqJWq69rN7w+w3flcotmIgy9Cjk+nGvf+E10sXx2YryubVl4vu3tPDV+6Tbs0vP4vjkqmDCymjnm5PRc5AGE+V0Ob8EANx7T+n88SHd3vTTfjMIyJbqfUY37r1rrP1t/tPl4rkgvXdwZDLhdXHNzdWVhQGtUJeDYl8XyWRJD/HMd0E5AKhBxg5KTgOoDNrA2h/6wCYylAIQAwNjUWPZBxGxg96X5BEBzI0TQkQh4jIAFuwPNXlEAJPD25Xk5AAwWdoHzrgMgImsjkWNi2yPADzWtgP8cPJAMVUZQK+4AaANdLm2dEyfLVtWRgMsJgMgzlgNXXW84qwhMdkxaD+GhSm8bkwVAPGsUH1AWpON2hqAtVZcBkAczxsj2wDgYKgrrGyIDKXcPkQAkzPJOyKA14nkyNEAMNjxpDUqxcLsGPAXrQHA69tAQPw/nY83wXKnNrC+DfwCVzlnH/zsQH8AAAAASUVORK5CYII=">
 </head>
@@ -158,58 +159,17 @@
     </section>
 
     <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.174.0/build/three.min.js"></script>
-    <script>
-        // Create fallbacks for module objects if they fail to load
-        THREE.EffectComposer = function(renderer) {
-            this.renderer = renderer;
-            this.passes = [];
-            this.addPass = function() {};
-            this.render = function() { renderer.render(this.scene, this.camera); };
-        };
-        THREE.RenderPass = function(scene, camera) { 
-            this.scene = scene;
-            this.camera = camera;
-        };
-        THREE.ShaderPass = function(shader) { this.uniforms = shader.uniforms || {}; };
-        THREE.UnrealBloomPass = function() { this.uniforms = {}; };
-    </script>
-    <script type="module">
-        // Import post-processing modules
-        (async function() {
-            try {
-                const threeModules = await Promise.all([
-                    import('https://cdn.jsdelivr.net/npm/three@0.174.0/examples/jsm/postprocessing/EffectComposer.js'),
-                    import('https://cdn.jsdelivr.net/npm/three@0.174.0/examples/jsm/postprocessing/RenderPass.js'),
-                    import('https://cdn.jsdelivr.net/npm/three@0.174.0/examples/jsm/postprocessing/UnrealBloomPass.js'),
-                    import('https://cdn.jsdelivr.net/npm/three@0.174.0/examples/jsm/postprocessing/ShaderPass.js')
-                ]);
-                
-                // Make them available globally as part of THREE
-                THREE.EffectComposer = threeModules[0].EffectComposer;
-                THREE.RenderPass = threeModules[1].RenderPass;
-                THREE.UnrealBloomPass = threeModules[2].UnrealBloomPass;
-                THREE.ShaderPass = threeModules[3].ShaderPass;
-                
-                console.log('Three.js modules loaded successfully');
-            } catch (error) {
-                console.error('Error loading Three.js modules. Using fallbacks.', error);
-                // Fallbacks already defined in previous script
-            } finally {
-                // Signal that loading attempt is complete, regardless of success/failure
-                document.dispatchEvent(new Event('three-modules-loaded'));
-            }
-        })();
-    </script>
-    <script>
-        // Wait for both THREE and modules to be loaded
-        document.addEventListener('three-modules-loaded', function() {
-            // Now load the main script
-            const script = document.createElement('script');
-            script.src = 'js/main.js';
-            document.body.appendChild(script);
-        });
-    </script>
+    <!-- Load Three.js first -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.154.0/three.min.js"></script>
+    
+    <!-- Then load post-processing modules from JSDelivr -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/examples/js/postprocessing/ShaderPass.js"></script>
+    
+    <!-- Load your main script last -->
+    <script src="js/main.js"></script>
     
     <!-- Section Navigation Script -->
     <script>
