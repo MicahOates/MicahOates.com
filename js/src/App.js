@@ -10,8 +10,10 @@ import { UIController } from './ui/UIController.js';
 // Import Audio system
 import { AudioManager } from './audio/AudioManager.js';
 
-// Import Documentation utility
+// Import utility systems
 import { Documentation } from './utils/Documentation.js';
+import { AssetManager } from './utils/AssetManager.js';
+import { PhysicsController } from './utils/PhysicsController.js';
 
 /**
  * Main application class
@@ -27,6 +29,8 @@ export class App {
         // Managers
         this.sceneManager = null;
         this.postProcessingManager = null;
+        this.assetManager = null;
+        this.physicsController = null;
         
         // Effects
         this.blackHoleEffect = null;
@@ -52,6 +56,10 @@ export class App {
             debug: {
                 showFPS: false,
                 showControls: false
+            },
+            physics: {
+                enabled: true,
+                useWebWorker: true
             }
         };
         
@@ -70,59 +78,191 @@ export class App {
                 return;
             }
             
-            // Create renderer with error handling
-            this.createRenderer();
+            // Initialize asset manager first
+            this.initAssetManager();
             
-            // Initialize scene with error handling
-            this.initScene();
+            // Initialize physics controller
+            this.initPhysicsController();
             
-            // Initialize effects
-            try {
-                this.initEffects();
-            } catch (effectError) {
-                console.error('Failed to initialize effects:', effectError);
-                // Continue without effects
-            }
-            
-            // Initialize UI
-            try {
-                this.initUIManager();
-                this.initUIController();
-            } catch (uiError) {
-                console.error('Failed to initialize UI:', uiError);
-                // Continue without UI elements
-            }
-            
-            // Initialize Audio
-            try {
-                this.initAudioManager();
-            } catch (audioError) {
-                console.error('Failed to initialize audio:', audioError);
-                // Continue without audio
-            }
-            
-            // Initialize Documentation
-            this.initDocumentation();
-            
-            // Set up resize handler
-            window.addEventListener('resize', this.handleResize, false);
-            
-            // Set up error handler for unhandled errors
-            window.addEventListener('error', this.handleGlobalError.bind(this));
-            
-            // Set up GPU hang detection
-            this.setupGPUHangDetection();
-            
-            // Start animation loop
-            this.isRunning = true;
-            this.animate();
-            
-            // Log initialization success
-            console.log('Application initialized successfully');
+            // Load essential assets before continuing
+            this.loadEssentialAssets().then(() => {
+                // Create renderer with error handling
+                this.createRenderer();
+                
+                // Initialize scene with error handling
+                this.initScene();
+                
+                // Initialize effects
+                try {
+                    this.initEffects();
+                } catch (effectError) {
+                    console.error('Failed to initialize effects:', effectError);
+                    // Continue without effects
+                }
+                
+                // Initialize UI
+                try {
+                    this.initUIManager();
+                    this.initUIController();
+                } catch (uiError) {
+                    console.error('Failed to initialize UI:', uiError);
+                    // Continue without UI elements
+                }
+                
+                // Initialize Audio
+                try {
+                    this.initAudioManager();
+                } catch (audioError) {
+                    console.error('Failed to initialize audio:', audioError);
+                    // Continue without audio
+                }
+                
+                // Initialize Documentation
+                this.initDocumentation();
+                
+                // Set up resize handler
+                window.addEventListener('resize', this.handleResize, false);
+                
+                // Set up error handler for unhandled errors
+                window.addEventListener('error', this.handleGlobalError.bind(this));
+                
+                // Set up GPU hang detection
+                this.setupGPUHangDetection();
+                
+                // Initialize and start the physics simulation
+                this.startPhysicsSimulation();
+                
+                // Start animation loop
+                this.isRunning = true;
+                this.animate();
+                
+                // Log initialization success
+                console.log('Application initialized successfully');
+                
+                // Load non-essential assets after initialization
+                this.loadNonEssentialAssets();
+            }).catch(error => {
+                console.error('Failed to load essential assets:', error);
+                this.showFallbackContent('Failed to load required assets. Please check your connection and try again.');
+            });
         } catch (error) {
             console.error('Application initialization failed:', error);
             this.showFallbackContent('There was a problem initializing the visualization. Please try refreshing the page or using a different browser.');
         }
+    }
+    
+    /**
+     * Initialize asset manager
+     */
+    initAssetManager() {
+        this.assetManager = new AssetManager(this);
+        this.assetManager.init();
+    }
+    
+    /**
+     * Load essential assets required for initial display
+     * @returns {Promise} - Resolves when essential assets are loaded
+     */
+    loadEssentialAssets() {
+        // Define essential assets that must be loaded before rendering
+        const essentialAssets = {
+            textures: [
+                {
+                    name: 'particle',
+                    url: 'assets/textures/particle.png',
+                    options: {
+                        wrapS: THREE.ClampToEdgeWrapping,
+                        wrapT: THREE.ClampToEdgeWrapping
+                    }
+                },
+                {
+                    name: 'noise',
+                    url: 'assets/textures/noise.png',
+                    options: {
+                        wrapS: THREE.RepeatWrapping,
+                        wrapT: THREE.RepeatWrapping
+                    }
+                }
+            ],
+            shaders: [
+                {
+                    name: 'blackHoleVertex',
+                    url: 'assets/shaders/blackhole.vert'
+                },
+                {
+                    name: 'blackHoleFragment',
+                    url: 'assets/shaders/blackhole.frag'
+                }
+            ]
+        };
+        
+        return this.assetManager.loadAssets(essentialAssets);
+    }
+    
+    /**
+     * Load non-essential assets after initialization
+     */
+    loadNonEssentialAssets() {
+        // Define non-essential assets to load after app is initialized
+        const nonEssentialAssets = {
+            textures: [
+                {
+                    name: 'stars',
+                    url: 'assets/textures/stars.jpg',
+                    options: {
+                        wrapS: THREE.RepeatWrapping,
+                        wrapT: THREE.RepeatWrapping
+                    }
+                },
+                {
+                    name: 'dust',
+                    url: 'assets/textures/dust.png',
+                    options: {
+                        wrapS: THREE.RepeatWrapping,
+                        wrapT: THREE.RepeatWrapping
+                    }
+                }
+            ],
+            cubemaps: [
+                {
+                    name: 'spaceSkybox',
+                    path: 'assets/cubemaps/space/',
+                    urls: ['px.jpg', 'nx.jpg', 'py.jpg', 'ny.jpg', 'pz.jpg', 'nz.jpg']
+                }
+            ],
+            shaders: [
+                {
+                    name: 'nebulaVertex',
+                    url: 'assets/shaders/nebula.vert'
+                },
+                {
+                    name: 'nebulaFragment',
+                    url: 'assets/shaders/nebula.frag'
+                }
+            ]
+        };
+        
+        return this.assetManager.loadAssets(nonEssentialAssets)
+            .then(results => {
+                console.log('Non-essential assets loaded');
+                
+                // Update components with loaded assets
+                if (this.sceneManager && this.sceneManager.updateAssets) {
+                    this.sceneManager.updateAssets();
+                }
+                
+                if (this.blackHoleEffect && this.blackHoleEffect.updateAssets) {
+                    this.blackHoleEffect.updateAssets();
+                }
+                
+                if (this.nebulaEffect && this.nebulaEffect.updateAssets) {
+                    this.nebulaEffect.updateAssets();
+                }
+            })
+            .catch(error => {
+                console.warn('Failed to load some non-essential assets:', error);
+                // Continue anyway as these are non-essential
+            });
     }
     
     /**
@@ -705,6 +845,8 @@ export class App {
             this.uiController.update(time);
         }
         
+        // Update physics (handled by PhysicsController independently)
+        
         // Update audio visualization if needed
         if (this.audioManager && this.audioManager.enabled) {
             // The AudioManager doesn't have an update method yet, but we can add it if needed
@@ -776,6 +918,20 @@ export class App {
         // Stop animation loop
         this.isRunning = false;
         
+        // Dispose physics controller
+        if (this.physicsController) {
+            console.log('Disposing physics controller');
+            this.physicsController.dispose();
+            this.physicsController = null;
+        }
+        
+        // Dispose asset manager first (this will dispose all textures)
+        if (this.assetManager) {
+            console.log('Disposing asset manager');
+            this.assetManager.dispose();
+            this.assetManager = null;
+        }
+        
         // Dispose renderer
         if (this.renderer) {
             console.log('Disposing renderer');
@@ -840,6 +996,7 @@ export class App {
         this.uiManager = null;
         this.uiController = null;
         this.audioManager = null;
+        this.documentation = null;
         
         // Force garbage collection if available
         if (window.gc) {
@@ -928,6 +1085,146 @@ export class App {
         
         if (this.uiManager && this.uiManager.updateColors) {
             this.uiManager.updateColors(colors);
+        }
+    }
+    
+    /**
+     * Initialize physics controller
+     */
+    initPhysicsController() {
+        if (!this.config.physics.enabled) {
+            console.log('Physics system disabled by configuration');
+            return;
+        }
+        
+        try {
+            this.physicsController = new PhysicsController(this);
+            this.physicsController.init();
+            console.log('Physics controller initialized');
+        } catch (error) {
+            console.error('Failed to initialize physics controller:', error);
+            console.log('Continuing without physics simulation');
+        }
+    }
+    
+    /**
+     * Start the physics simulation with initial parameters
+     */
+    startPhysicsSimulation() {
+        if (!this.physicsController || !this.config.physics.enabled) return;
+        
+        // Set initial parameters
+        const blackHoleData = {
+            position: [0, 0, 0],
+            mass: 1e30 // 1 solar mass in kg
+        };
+        
+        // Set simulation parameters
+        this.physicsController.setParameters({
+            blackHoleData,
+            includeRelativity: true
+        });
+        
+        // Create initial particle cloud
+        this.createInitialParticles();
+        
+        // Set up the update callback
+        this.physicsController.onUpdate(this.handlePhysicsUpdate.bind(this));
+        
+        // Start the simulation
+        this.physicsController.start();
+    }
+    
+    /**
+     * Create initial particles for the physics simulation
+     */
+    createInitialParticles() {
+        if (!this.physicsController) return;
+        
+        // Create 500 particles in an orbit
+        const particles = [];
+        const count = 500;
+        
+        for (let i = 0; i < count; i++) {
+            // Create particles in a disk
+            const angle = (i / count) * Math.PI * 2;
+            const radius = 20 + Math.random() * 30;
+            
+            // Position on a flat orbit
+            const x = Math.cos(angle) * radius;
+            const y = (Math.random() - 0.5) * 2; // Slight vertical distribution
+            const z = Math.sin(angle) * radius;
+            
+            // Orbital velocity (perpendicular to position)
+            const speed = 0.5 + Math.random() * 0.3;
+            const vx = -Math.sin(angle) * speed;
+            const vy = 0;
+            const vz = Math.cos(angle) * speed;
+            
+            // Add particle
+            particles.push({
+                position: [x, y, z],
+                velocity: [vx, vy, vz],
+                mass: 1,
+                charge: 0
+            });
+        }
+        
+        // Add particles to simulation
+        this.physicsController.addParticles(particles);
+    }
+    
+    /**
+     * Handle physics update from simulation
+     * @param {Object} data - Physics update data
+     */
+    handlePhysicsUpdate(data) {
+        // Update visualization components with new particle positions
+        if (this.blackHoleEffect && this.blackHoleEffect.updateParticles) {
+            this.blackHoleEffect.updateParticles(data.particles);
+        }
+        
+        // Update UI if needed
+        if (this.uiController && this.uiController.updatePhysicsData) {
+            this.uiController.updatePhysicsData({
+                particleCount: data.particles.length,
+                capturedCount: data.capturedCount
+            });
+        }
+    }
+    
+    /**
+     * Add particles to the physics simulation
+     * @param {Array|Object} particles - Particle or array of particles to add
+     */
+    addParticles(particles) {
+        if (this.physicsController && this.config.physics.enabled) {
+            return this.physicsController.addParticles(particles);
+        }
+    }
+    
+    /**
+     * Clear all particles from the physics simulation
+     */
+    clearParticles() {
+        if (this.physicsController && this.config.physics.enabled) {
+            this.physicsController.clearParticles();
+        }
+    }
+    
+    /**
+     * Calculate gravitational lensing effects
+     * @param {Array} rays - Array of light rays
+     * @param {Function} callback - Callback function for results
+     */
+    calculateLensing(rays, callback) {
+        if (this.physicsController && this.config.physics.enabled) {
+            this.physicsController.calculateLensing(rays, callback);
+        } else {
+            // No physics controller available, return rays unmodified
+            setTimeout(() => {
+                if (callback) callback(rays);
+            }, 0);
         }
     }
 } 
