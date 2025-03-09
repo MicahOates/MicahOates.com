@@ -16,8 +16,19 @@
     --secondary-glow: #00ffff80;
     --text: #ffffff;
     --background: #000000;
+    --card-bg: #121212;
     --orb-size: 60px;
     --transition-speed: 0.3s;
+}
+
+body.light-mode {
+    --primary: #9900cc;
+    --primary-glow: #9900cc80;
+    --secondary: #0088cc;
+    --secondary-glow: #0088cc80;
+    --text: #121212;
+    --background: #f5f5f5;
+    --card-bg: #ffffff;
 }
 
 body {
@@ -28,6 +39,7 @@ body {
     color: var(--text);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.5s ease;
 }
 
 #container {
@@ -89,6 +101,27 @@ body {
     font-size: 18px;
     letter-spacing: 2px;
     animation: pulse 1.5s infinite alternate;
+    margin-bottom: 20px;
+}
+
+.progress-container {
+    width: 240px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+
+.progress-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--secondary) 0%, var(--primary) 100%);
+    transition: width 0.3s ease-out;
+    box-shadow: 0 0 10px var(--primary-glow);
 }
 
 @keyframes spin {
@@ -395,19 +428,37 @@ body {
 }
 
 .project-card {
-    background: rgba(20, 20, 20, 0.8);
-    border-radius: 12px;
-    padding: 25px;
-    width: 350px;
-    box-shadow: 0 0 15px var(--primary-glow);
-    transition: transform 0.3s, box-shadow 0.3s;
-    border-top: 3px solid var(--primary);
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.project-card.featured {
+    border: 1px solid var(--primary);
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.3), rgba(255, 0, 255, 0.1));
+    position: relative;
+    overflow: hidden;
+}
+
+.project-card.featured::before {
+    content: 'Featured';
+    position: absolute;
+    top: 10px;
+    right: -30px;
+    background: var(--primary);
+    color: #fff;
+    font-size: 12px;
+    padding: 5px 30px;
+    transform: rotate(45deg);
+    box-shadow: 0 0 10px var(--primary-glow);
 }
 
 .project-card:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 0 25px var(--secondary-glow);
-    border-top-color: var(--secondary);
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(255, 0, 255, 0.2);
 }
 
 .project-title {
@@ -531,4 +582,78 @@ body {
         width: 100%;
         max-width: 300px;
     }
+}
+
+/* Theme Toggle Button */
+#theme-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.5);
+    border: 2px solid var(--primary);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 100;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 8px var(--primary-glow);
+    overflow: hidden;
+    pointer-events: auto;
+}
+
+body.light-mode #theme-toggle {
+    background: rgba(255, 255, 255, 0.8);
+    border-color: var(--primary);
+}
+
+#theme-toggle:hover {
+    transform: scale(1.1);
+}
+
+#theme-toggle::before {
+    content: '🌙';
+    font-size: 18px;
+}
+
+body.light-mode #theme-toggle::before {
+    content: '☀️';
+}
+
+/* Content Section Updates for Light Mode */
+body.light-mode .content-section {
+    background: var(--card-bg);
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+body.light-mode .close-btn {
+    color: #333;
+}
+
+body.light-mode .project-card {
+    background: var(--card-bg);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+body.light-mode .blog-post {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Update scrollbar for light mode */
+body.light-mode .content-container::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+body.light-mode .content-container::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+body.light-mode .content-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.3);
 }

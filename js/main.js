@@ -19,7 +19,8 @@ const app = {
         particleCount: 2000,
         blackHoleRadius: 10,
         accretionDiskRadius: 15,
-        bloom: true
+        bloom: true,
+        devicePerformance: 'high' // New property to track device performance
     },
     
     init() {
@@ -67,8 +68,47 @@ const app = {
         loader.innerHTML = `
             <div class="spinner"></div>
             <div class="loader-text">Initializing Singularity...</div>
+            <div class="progress-container">
+                <div class="progress-bar"></div>
+            </div>
         `;
         document.body.appendChild(loader);
+        
+        // Simulate loading progress
+        this.updateLoadingProgress();
+    },
+    
+    updateLoadingProgress() {
+        let progress = 0;
+        const progressBar = document.querySelector('.progress-bar');
+        const loaderText = document.querySelector('.loader-text');
+        const loadingTexts = [
+            'Initializing Singularity...',
+            'Generating Quantum Field...',
+            'Calibrating Visual Matrix...',
+            'Stabilizing Particle System...',
+            'Almost Ready...'
+        ];
+        
+        const interval = setInterval(() => {
+            progress += Math.random() * 15;
+            
+            if (progress >= 100) {
+                progress = 100;
+                clearInterval(interval);
+            }
+            
+            // Update progress bar width
+            if (progressBar) {
+                progressBar.style.width = `${progress}%`;
+            }
+            
+            // Update loading text based on progress
+            if (loaderText) {
+                const textIndex = Math.min(Math.floor(progress / 20), loadingTexts.length - 1);
+                loaderText.textContent = loadingTexts[textIndex];
+            }
+        }, 400);
     },
     
     hideLoader() {
@@ -302,94 +342,76 @@ const app = {
     },
     
     getOptimalParticleCount() {
-        // Adjust particle count based on device performance
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        const isLowPerformance = isMobile || (window.devicePixelRatio < 2);
+        // Improved performance detection
+        const performance = this.detectPerformance();
         
-        return isLowPerformance ? 
-            Math.floor(this.config.particleCount * 0.5) : 
-            this.config.particleCount;
+        // Adjust particle count based on performance level and screen size
+        const base = this.sizes.width * this.sizes.height;
+        
+        if (performance === 'low') {
+            this.config.devicePerformance = 'low';
+            return Math.min(800, Math.floor(base / 8000));
+        } else if (performance === 'medium') {
+            this.config.devicePerformance = 'medium';
+            return Math.min(1500, Math.floor(base / 4000));
+        } else {
+            this.config.devicePerformance = 'high';
+            return Math.min(2500, Math.floor(base / 2000));
+        }
+    },
+    
+    detectPerformance() {
+        // Detect if mobile
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        // Check for GPU info if available
+        const gl = this.renderer.getContext();
+        const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+        const gpu = debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : '';
+        
+        // Check for low-end devices
+        if (isMobile || 
+            (gpu && (gpu.includes('Intel') || gpu.includes('Apple')))) {
+            // Further check based on pixel ratio and resolution
+            if (window.devicePixelRatio <= 1 || this.sizes.width * this.sizes.height < 500000) {
+                return 'low';
+            } else {
+                return 'medium';
+            }
+        }
+        
+        // Check for mid-range devices
+        if (gpu && !gpu.includes('RTX') && !gpu.includes('Radeon Pro')) {
+            return 'medium';
+        }
+        
+        // High-end devices
+        return 'high';
     },
     
     initPostProcessing() {
-        // Skip post-processing on mobile to save performance
-        if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-            this.config.bloom = false;
-            return;
-        }
-        
-        // Create composer with effects
+        // Create composer
         this.composer = new THREE.EffectComposer(this.renderer);
         
+        // Add render pass
         const renderPass = new THREE.RenderPass(this.scene, this.camera);
         this.composer.addPass(renderPass);
         
-        if (this.config.bloom) {
+        // Only add bloom if device can handle it
+        if (this.config.bloom && this.config.devicePerformance !== 'low') {
+            // Add bloom pass with optimized settings based on performance
+            const bloomStrength = this.config.devicePerformance === 'high' ? 1.5 : 1.0;
+            const bloomRadius = this.config.devicePerformance === 'high' ? 0.7 : 0.5;
+            const bloomThreshold = 0.2;
+            
             const bloomPass = new THREE.UnrealBloomPass(
                 new THREE.Vector2(this.sizes.width, this.sizes.height),
-                1.5,  // strength
-                0.4,  // radius
-                0.85  // threshold
+                bloomStrength,
+                bloomRadius,
+                bloomThreshold
             );
             this.composer.addPass(bloomPass);
         }
-        
-        // Add subtle film grain and color adjustment
-        const filmPass = new THREE.ShaderPass({
-            uniforms: {
-                time: { value: 0 },
-                nIntensity: { value: 0.2 },
-                sIntensity: { value: 0.2 },
-                grayscale: { value: 0 },
-                tint: { value: new THREE.Vector3(1.05, 0.97, 1.1) }
-            },
-            vertexShader: `
-                varying vec2 vUv;
-                void main() {
-                    vUv = uv;
-                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-                }
-            `,
-            fragmentShader: `
-                uniform float time;
-                uniform float nIntensity;
-                uniform float sIntensity;
-                uniform int grayscale;
-                uniform vec3 tint;
-                varying vec2 vUv;
-                uniform sampler2D tDiffuse;
-                
-                float rand(vec2 co) {
-                    return fract(sin(dot(co.xy, vec2(12.9898, 78.233))) * 43758.5453);
-                }
-                
-                void main() {
-                    vec4 color = texture2D(tDiffuse, vUv);
-                    
-                    // Add film grain
-                    vec2 noiseCoord = vUv + time;
-                    float noise = rand(noiseCoord) * nIntensity;
-                    
-                    // Add scanlines
-                    float scanline = sin(vUv.y * 800.0) * sIntensity;
-                    
-                    // Combine effects
-                    color.rgb += noise - scanline;
-                    
-                    // Apply tint
-                    color.rgb *= tint;
-                    
-                    // Optional grayscale
-                    if (grayscale == 1) {
-                        float average = (color.r + color.g + color.b) / 3.0;
-                        color.rgb = vec3(average);
-                    }
-                    
-                    gl_FragColor = color;
-                }
-            `
-        });
-        this.composer.addPass(filmPass);
     },
     
     initOrbs() {
@@ -423,25 +445,7 @@ const app = {
     },
     
     initEventListeners() {
-        // Mouse Movement
-        document.addEventListener('mousemove', (e) => {
-            this.mouse.x = (e.clientX / this.sizes.width) * 2 - 1;
-            this.mouse.y = -(e.clientY / this.sizes.height) * 2 + 1;
-            
-            // Update quantum state based on observer effect
-            this.updateQuantumState(e.clientX, e.clientY);
-        });
-        
-        // Input Handling
-        const input = document.getElementById('data-input');
-        input.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && input.value) {
-                this.createDataFragment(input.value);
-                input.value = '';
-            }
-        });
-        
-        // Window Resize
+        // Resize handler
         window.addEventListener('resize', () => {
             // Update sizes
             this.sizes.width = window.innerWidth;
@@ -455,18 +459,45 @@ const app = {
             this.renderer.setSize(this.sizes.width, this.sizes.height);
             this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             
-            // Update composer if it exists
+            // Update composer
             if (this.composer) {
                 this.composer.setSize(this.sizes.width, this.sizes.height);
             }
             
-            // Recalculate orb positions
-            this.orbData.forEach((orb, index) => {
-                const totalOrbs = this.orbData.length;
-                const angle = (index / totalOrbs) * Math.PI * 2;
-                orb.radius = Math.min(this.sizes.width, this.sizes.height) * 0.3;
-                orb.baseAngle = angle;
-            });
+            // Update orb positions
+            this.updateOrbPositions();
+        });
+        
+        // Mouse Movement
+        document.addEventListener('mousemove', (e) => {
+            this.mouse.x = (e.clientX / this.sizes.width) * 2 - 1;
+            this.mouse.y = -(e.clientY / this.sizes.height) * 2 + 1;
+            
+            // Update quantum state based on observer effect
+            this.updateQuantumState(e.clientX, e.clientY);
+        });
+        
+        // Input Handling with particle effects
+        const input = document.getElementById('data-input');
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && input.value) {
+                this.createDataFragment(input.value);
+                input.value = '';
+            } else {
+                // Create a small particle burst on each keypress
+                this.createKeyPressEffect();
+            }
+        });
+        
+        // Focus effect for input
+        input.addEventListener('focus', () => {
+            // Increase particle activity around input when focused
+            this.increaseParticleActivity(true);
+        });
+        
+        input.addEventListener('blur', () => {
+            // Return particles to normal state
+            this.increaseParticleActivity(false);
         });
         
         // Orb hover effects
@@ -485,6 +516,74 @@ const app = {
                 }
             });
         });
+        
+        // Theme toggle functionality
+        const themeToggle = document.getElementById('theme-toggle');
+        if (themeToggle) {
+            // Check for saved preference
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'light') {
+                document.body.classList.add('light-mode');
+                this.updateVisualsForTheme('light');
+            }
+            
+            themeToggle.addEventListener('click', () => {
+                document.body.classList.toggle('light-mode');
+                const currentTheme = document.body.classList.contains('light-mode') ? 'light' : 'dark';
+                
+                // Save preference
+                localStorage.setItem('theme', currentTheme);
+                
+                // Update visuals
+                this.updateVisualsForTheme(currentTheme);
+            });
+        }
+        
+        // Check system preference if no saved preference
+        if (!localStorage.getItem('theme')) {
+            const prefersDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (!prefersDarkMode) {
+                document.body.classList.add('light-mode');
+                this.updateVisualsForTheme('light');
+            }
+        }
+    },
+    
+    updateVisualsForTheme(theme) {
+        // Update background color of scene
+        this.scene.background = new THREE.Color(theme === 'light' ? 0xf5f5f5 : 0x000000);
+        
+        // Update particle colors if they exist
+        if (this.particles && this.particles.geometry.attributes.color) {
+            const colors = this.particles.geometry.attributes.color.array;
+            const count = colors.length / 3;
+            
+            for (let i = 0; i < count; i++) {
+                const i3 = i * 3;
+                
+                if (theme === 'light') {
+                    // More subdued colors for light mode
+                    colors[i3]     *= 0.7; // r
+                    colors[i3 + 1] *= 0.7; // g
+                    colors[i3 + 2] *= 0.7; // b
+                } else {
+                    // Brighter colors for dark mode
+                    colors[i3]     /= 0.7; // r
+                    colors[i3 + 1] /= 0.7; // g
+                    colors[i3 + 2] /= 0.7; // b
+                }
+            }
+            
+            this.particles.geometry.attributes.color.needsUpdate = true;
+        }
+        
+        // Update post-processing if active
+        if (this.composer && this.composer.passes.length > 1) {
+            const bloomPass = this.composer.passes.find(pass => pass.constructor.name === 'UnrealBloomPass');
+            if (bloomPass) {
+                bloomPass.strength = theme === 'light' ? 0.8 : 1.5;
+            }
+        }
     },
     
     updateQuantumState(mouseX, mouseY) {
@@ -764,49 +863,159 @@ const app = {
         animateParticles();
     },
     
+    createKeyPressEffect() {
+        // Only create effect if particles exist
+        if (!this.particles || !this.initialized) return;
+        
+        // Get input position
+        const input = document.getElementById('data-input');
+        const rect = input.getBoundingClientRect();
+        const inputCenter = {
+            x: rect.left + rect.width / 2,
+            y: rect.top + rect.height / 2
+        };
+        
+        // Convert to normalized device coordinates (-1 to +1)
+        const ndc = {
+            x: (inputCenter.x / this.sizes.width) * 2 - 1,
+            y: -(inputCenter.y / this.sizes.height) * 2 + 1
+        };
+        
+        // Convert to world coordinates
+        const worldPos = new THREE.Vector3(ndc.x, ndc.y, 0);
+        worldPos.unproject(this.camera);
+        
+        // Create 5-10 particles that move outward from input
+        const particleCount = 5 + Math.floor(Math.random() * 5);
+        const colors = this.particles.geometry.attributes.color.array;
+        const positions = this.particles.geometry.attributes.position.array;
+        
+        // Find particles closest to input and give them velocity away from input
+        const particleIndices = [];
+        const distances = [];
+        
+        // Find distances to all particles
+        for (let i = 0; i < positions.length / 3; i++) {
+            const i3 = i * 3;
+            const particlePos = new THREE.Vector3(
+                positions[i3],
+                positions[i3 + 1],
+                positions[i3 + 2]
+            );
+            
+            const distance = particlePos.distanceTo(worldPos);
+            distances.push({ index: i, distance });
+        }
+        
+        // Sort by distance and take the closest ones
+        distances.sort((a, b) => a.distance - b.distance);
+        
+        // Affect the closest particles
+        for (let i = 0; i < Math.min(particleCount, distances.length); i++) {
+            const particleIndex = distances[i].index;
+            const i3 = particleIndex * 3;
+            
+            // Brighten the particle
+            colors[i3] = Math.min(1, colors[i3] * 1.5);
+            colors[i3 + 1] = Math.min(1, colors[i3 + 1] * 1.5);
+            colors[i3 + 2] = Math.min(1, colors[i3 + 2] * 1.5);
+            
+            // Store the index for velocity updates
+            particleIndices.push(particleIndex);
+        }
+        
+        // Update colors
+        this.particles.geometry.attributes.color.needsUpdate = true;
+        
+        // Store affected particles for animation
+        this.keyPressParticles = {
+            indices: particleIndices,
+            origin: worldPos,
+            time: 0
+        };
+    },
+    
+    increaseParticleActivity(active) {
+        // Store the state
+        this.particlesActive = active;
+        
+        // We'll use this state in the updateParticles method
+    },
+    
     updateParticles() {
         if (!this.particles) return;
         
         const time = this.clock.getElapsedTime();
         const positions = this.particles.geometry.attributes.position.array;
+        const colors = this.particles.geometry.attributes.color.array;
         
-        // Update particle positions
-        for (let i = 0; i < positions.length / 3; i++) {
-            // Apply velocity
-            positions[i * 3] += this.particles.velocities[i].vx;
-            positions[i * 3 + 1] += this.particles.velocities[i].vy;
+        // Update keypress particles if they exist
+        if (this.keyPressParticles) {
+            this.keyPressParticles.time += 0.016; // Approximately 60fps
             
-            // Apply turbulence
-            const turbulence = this.particles.velocities[i].turbulence;
-            positions[i * 3] += Math.sin(time * 5 + i) * turbulence;
-            positions[i * 3 + 1] += Math.cos(time * 5 + i) * turbulence;
-            
-            // Distance from center
-            const x = positions[i * 3];
-            const y = positions[i * 3 + 1];
-            const dist = Math.sqrt(x * x + y * y);
-            
-            // Reset particles that get too close or too far
-            if (dist < 10 || dist > 35) {
-                // Create a new particle in the disk
-                const angle = Math.random() * Math.PI * 2;
-                const radius = this.config.accretionDiskRadius + (Math.random() - 0.5) * 5;
+            // Animate for 1 second
+            if (this.keyPressParticles.time < 1) {
+                const origin = this.keyPressParticles.origin;
                 
-                positions[i * 3] = Math.cos(angle) * radius;
-                positions[i * 3 + 1] = Math.sin(angle) * radius;
-                positions[i * 3 + 2] = (Math.random() - 0.5) * 2;
+                for (const index of this.keyPressParticles.indices) {
+                    const i3 = index * 3;
+                    
+                    // Get current position
+                    const particlePos = new THREE.Vector3(
+                        positions[i3],
+                        positions[i3 + 1],
+                        positions[i3 + 2]
+                    );
+                    
+                    // Calculate direction away from origin
+                    const direction = new THREE.Vector3().subVectors(particlePos, origin).normalize();
+                    
+                    // Move particle outward
+                    const speed = 0.1 * (1 - this.keyPressParticles.time);
+                    positions[i3] += direction.x * speed;
+                    positions[i3 + 1] += direction.y * speed;
+                    positions[i3 + 2] += direction.z * speed;
+                    
+                    // Fade the brightness back to normal
+                    const fadeRate = 0.98;
+                    colors[i3] = Math.max(0.1, colors[i3] * fadeRate);
+                    colors[i3 + 1] = Math.max(0.1, colors[i3 + 1] * fadeRate);
+                    colors[i3 + 2] = Math.max(0.1, colors[i3 + 2] * fadeRate);
+                }
                 
-                const speed = 0.05 + Math.random() * 0.03;
-                this.particles.velocities[i].vx = Math.sin(angle) * speed;
-                this.particles.velocities[i].vy = -Math.cos(angle) * speed;
+                // Update the attributes
+                this.particles.geometry.attributes.position.needsUpdate = true;
+                this.particles.geometry.attributes.color.needsUpdate = true;
+            } else {
+                // Clear the keypress particles after animation
+                this.keyPressParticles = null;
             }
         }
         
-        // Update shader uniforms
-        this.particles.points.material.uniforms.time.value = time;
+        // Regular particle updates
+        for (let i = 0; i < positions.length / 3; i++) {
+            const i3 = i * 3;
+            
+            // Basic particle movement
+            positions[i3 + 1] += Math.sin(time + i * 0.1) * 0.01;
+            
+            // If particles are active (input focused), make them more energetic
+            if (this.particlesActive) {
+                positions[i3] += Math.sin(time * 2 + i * 0.3) * 0.02;
+                positions[i3 + 2] += Math.cos(time * 2 + i * 0.2) * 0.02;
+                
+                // Slightly brighten all particles
+                if (Math.random() > 0.95) {
+                    colors[i3] = Math.min(1, colors[i3] * 1.05);
+                    colors[i3 + 1] = Math.min(1, colors[i3 + 1] * 1.05);
+                    colors[i3 + 2] = Math.min(1, colors[i3 + 2] * 1.05);
+                }
+            }
+        }
         
-        // Flag for GPU update
+        // Update the attributes
         this.particles.geometry.attributes.position.needsUpdate = true;
+        this.particles.geometry.attributes.color.needsUpdate = true;
     },
     
     updateShaders(time) {

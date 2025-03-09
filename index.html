@@ -3,8 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Micah's Singularity</title>
-    <meta name="description" content="Welcome to Micah Oates' digital singularity - a portal to my work, thoughts, and explorations.">
+    <title>Micah Oates | Developer & Digital Explorer</title>
+    <meta name="description" content="Welcome to Micah Oates' digital singularity - a portal to my work, thoughts, and explorations in web development, interactive design, and creative coding.">
+    
+    <!-- SEO Meta Tags -->
+    <meta name="keywords" content="Micah Oates, web developer, creative coder, interactive design, portfolio, WebGL, Three.js">
+    <meta name="author" content="Micah Oates">
+    <meta name="robots" content="index, follow">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://micahoates.com/">
+    <meta property="og:title" content="Micah Oates | Developer & Digital Explorer">
+    <meta property="og:description" content="Explore my digital singularity - a showcase of creative coding, web development, and interactive experiences.">
+    <meta property="og:image" content="https://micahoates.com/preview.jpg">
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://micahoates.com/">
+    <meta property="twitter:title" content="Micah Oates | Developer & Digital Explorer">
+    <meta property="twitter:description" content="Explore my digital singularity - a showcase of creative coding, web development, and interactive experiences.">
+    <meta property="twitter:image" content="https://micahoates.com/preview.jpg">
+    
+    <!-- Styles and Fonts -->
     <link rel="stylesheet" href="css/styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
     <!-- Favicon -->
@@ -22,6 +43,7 @@
                 <a href="#blog" class="orb" data-label="Blog">Blog</a>
             </div>
         </div>
+        <div id="theme-toggle" title="Toggle light/dark mode"></div>
     </div>
     
     <!-- Content Sections -->
@@ -65,6 +87,14 @@
         <a href="#" class="close-btn">&times;</a>
         <h2>Projects</h2>
         <div class="content-container projects-container">
+            <div class="project-card featured">
+                <div class="project-title">Cosmic Pathfinder</div>
+                <div class="project-description">
+                    <p>A WebGPU-powered space exploration simulator that uses procedural generation to create vast, explorable galaxies with realistic physics and interactive elements.</p>
+                </div>
+                <div class="project-tech">WebGPU • Three.js • React • TypeScript • Web Workers</div>
+            </div>
+            
             <div class="project-card">
                 <div class="project-title">Quantum Data Visualizer</div>
                 <div class="project-description">
@@ -147,6 +177,8 @@
                     const targetSection = document.querySelector(hash);
                     if (targetSection) {
                         targetSection.classList.add('active');
+                        // Track page view for analytics
+                        if (window.plausible) plausible('pageview', { props: { section: hash.substring(1) } });
                     }
                 }
             }
@@ -167,5 +199,8 @@
             });
         });
     </script>
+    
+    <!-- Privacy-friendly Analytics -->
+    <script defer data-domain="micahoates.com" src="https://plausible.io/js/script.js"></script>
 </body>
 </html>
