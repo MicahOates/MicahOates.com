@@ -20,7 +20,10 @@ const app = {
         blackHoleRadius: 10,
         accretionDiskRadius: 15,
         bloom: true,
-        devicePerformance: 'high' // New property to track device performance
+        devicePerformance: 'high', // New property to track device performance
+        timeDilationEnabled: true,  // Enable time dilation visualization
+        lensingEnabled: true,  // Enable gravitational lensing effect
+        frameDraggingEnabled: true  // Enable frame dragging visualization
     },
     
     init() {
@@ -114,7 +117,10 @@ const app = {
             accretionDiskSize: this.config.accretionDiskRadius,
             accretionBrightness: 1.0,
             lensStrength: 10.0,
-            hawkingIntensity: 1.0
+            hawkingIntensity: 1.0,
+            timeDilationFactor: 1.0, // New parameter
+            lensingIntensity: 1.0, // New parameter for gravitational lensing
+            frameDraggingFactor: 1.0 // New parameter for frame dragging
         };
         
         // Create control panel content
@@ -164,6 +170,24 @@ const app = {
                     <label for="hawking-control">Hawking Radiation</label>
                     <input type="range" id="hawking-control" min="0" max="2" step="0.1" value="${this.blackHoleParams.hawkingIntensity}">
                     <span class="control-value" id="hawking-value">${this.blackHoleParams.hawkingIntensity}</span>
+                </div>
+                
+                <div class="control-group">
+                    <label for="time-dilation-control">Time Dilation</label>
+                    <input type="range" id="time-dilation-control" min="0" max="2" step="0.1" value="${this.blackHoleParams.timeDilationFactor}">
+                    <span class="control-value" id="time-dilation-value">${this.blackHoleParams.timeDilationFactor}</span>
+                </div>
+                
+                <div class="control-group">
+                    <label for="lensing-control">Gravitational Lensing</label>
+                    <input type="range" id="lensing-control" min="0" max="2" step="0.1" value="${this.blackHoleParams.lensingIntensity}">
+                    <span class="control-value" id="lensing-value">${this.blackHoleParams.lensingIntensity}</span>
+                </div>
+                
+                <div class="control-group">
+                    <label for="frame-dragging-control">Frame Dragging</label>
+                    <input type="range" id="frame-dragging-control" min="0" max="2" step="0.1" value="${this.blackHoleParams.frameDraggingFactor}">
+                    <span class="control-value" id="frame-dragging-value">${this.blackHoleParams.frameDraggingFactor}</span>
                 </div>
             </div>
             <div class="control-footer">
@@ -360,6 +384,84 @@ const app = {
             this.playControlChangeSound();
         });
         
+        // Time dilation control
+        const timeDilationControl = document.getElementById('time-dilation-control');
+        const timeDilationValue = document.getElementById('time-dilation-value');
+        
+        timeDilationControl.addEventListener('input', () => {
+            const value = parseFloat(timeDilationControl.value);
+            timeDilationValue.textContent = value.toFixed(1);
+            this.blackHoleParams.timeDilationFactor = value;
+            
+            // Update time dilation visualization
+            if (this.timeDilationField) {
+                this.timeDilationField.visible = value > 0;
+                if (this.timeDilationField.material.uniforms) {
+                    this.timeDilationField.material.uniforms.intensity.value = value;
+                }
+            }
+            
+            // Create special effect when adjusting time dilation
+            if (this.audioContext && this.audioContext.state === 'running') {
+                this.createTimeDilationSound(value);
+            }
+            
+            this.playControlChangeSound();
+        });
+        
+        // Gravitational lensing control
+        const lensingControl = document.getElementById('lensing-control');
+        const lensingValue = document.getElementById('lensing-value');
+        
+        lensingControl.addEventListener('input', () => {
+            const value = parseFloat(lensingControl.value);
+            lensingValue.textContent = value.toFixed(1);
+            this.blackHoleParams.lensingIntensity = value;
+            
+            // Update gravitational lensing visualization
+            if (this.lensingStars) {
+                this.lensingStars.visible = value > 0;
+                if (this.lensingStars.material.uniforms) {
+                    this.lensingStars.material.uniforms.lensStrength.value = value * 15; // Scale for effect
+                    this.lensingStars.material.uniforms.intensity.value = value;
+                }
+            }
+            
+            // Create special effect when adjusting lensing
+            if (this.audioContext && this.audioContext.state === 'running') {
+                this.createLensingSound(value);
+            }
+            
+            this.playControlChangeSound();
+        });
+        
+        // Frame dragging control
+        const frameDraggingControl = document.getElementById('frame-dragging-control');
+        const frameDraggingValue = document.getElementById('frame-dragging-value');
+        
+        frameDraggingControl.addEventListener('input', () => {
+            const value = parseFloat(frameDraggingControl.value);
+            frameDraggingValue.textContent = value.toFixed(1);
+            this.blackHoleParams.frameDraggingFactor = value;
+            
+            // Update frame dragging visualization
+            if (this.frameDraggingEffect) {
+                this.frameDraggingEffect.visible = value > 0;
+                if (this.frameDraggingEffect.material.uniforms) {
+                    this.frameDraggingEffect.material.uniforms.intensity.value = value;
+                    this.frameDraggingEffect.material.uniforms.rotationSpeed.value = 
+                        this.blackHoleParams.rotationSpeed * value;
+                }
+            }
+            
+            // Create special effect when adjusting frame dragging
+            if (this.audioContext && this.audioContext.state === 'running') {
+                this.createFrameDraggingSound(value);
+            }
+            
+            this.playControlChangeSound();
+        });
+        
         // Keyboard accessibility
         document.getElementById('control-toggle').addEventListener('keydown', (e) => {
             if (e.key === 'Enter' || e.key === ' ') {
@@ -388,7 +490,10 @@ const app = {
             accretionDiskSize: this.config.accretionDiskRadius,
             accretionBrightness: 1.0,
             lensStrength: 10.0,
-            hawkingIntensity: 1.0
+            hawkingIntensity: 1.0,
+            timeDilationFactor: 1.0,
+            lensingIntensity: 1.0,
+            frameDraggingFactor: 1.0
         };
         
         // Update UI sliders
@@ -413,6 +518,18 @@ const app = {
         document.getElementById('hawking-control').value = this.blackHoleParams.hawkingIntensity;
         document.getElementById('hawking-value').textContent = this.blackHoleParams.hawkingIntensity;
         
+        // Update time dilation slider
+        document.getElementById('time-dilation-control').value = this.blackHoleParams.timeDilationFactor;
+        document.getElementById('time-dilation-value').textContent = this.blackHoleParams.timeDilationFactor.toFixed(1);
+        
+        // Update gravitational lensing slider
+        document.getElementById('lensing-control').value = this.blackHoleParams.lensingIntensity;
+        document.getElementById('lensing-value').textContent = this.blackHoleParams.lensingIntensity.toFixed(1);
+        
+        // Update frame dragging slider
+        document.getElementById('frame-dragging-control').value = this.blackHoleParams.frameDraggingFactor;
+        document.getElementById('frame-dragging-value').textContent = this.blackHoleParams.frameDraggingFactor.toFixed(1);
+        
         // Update visual elements
         this.updateBlackHoleFromControls();
     },
@@ -424,9 +541,12 @@ const app = {
             intensity: Math.random() * 2.5 + 0.5, // 0.5-3
             rotationSpeed: Math.random() * 2, // 0-2
             accretionDiskSize: Math.random() * 10 + 15, // 15-25
-            accretionBrightness: Math.random() + 0.5, // 0.5-1.5
+            accretionBrightness: Math.random() * 1 + 0.5, // 0.5-1.5
             lensStrength: Math.random() * 15 + 5, // 5-20
-            hawkingIntensity: Math.random() * 2 // 0-2
+            hawkingIntensity: Math.random() * 2, // 0-2
+            timeDilationFactor: Math.random() * 2, // 0-2
+            lensingIntensity: Math.random() * 2, // 0-2
+            frameDraggingFactor: Math.random() * 2 // 0-2
         };
         
         // Update UI sliders
@@ -450,6 +570,18 @@ const app = {
         
         document.getElementById('hawking-control').value = this.blackHoleParams.hawkingIntensity;
         document.getElementById('hawking-value').textContent = this.blackHoleParams.hawkingIntensity.toFixed(1);
+        
+        // Update time dilation slider
+        document.getElementById('time-dilation-control').value = this.blackHoleParams.timeDilationFactor;
+        document.getElementById('time-dilation-value').textContent = this.blackHoleParams.timeDilationFactor.toFixed(1);
+        
+        // Update gravitational lensing slider
+        document.getElementById('lensing-control').value = this.blackHoleParams.lensingIntensity;
+        document.getElementById('lensing-value').textContent = this.blackHoleParams.lensingIntensity.toFixed(1);
+        
+        // Update frame dragging slider
+        document.getElementById('frame-dragging-control').value = this.blackHoleParams.frameDraggingFactor;
+        document.getElementById('frame-dragging-value').textContent = this.blackHoleParams.frameDraggingFactor.toFixed(1);
         
         // Update visual elements
         this.updateBlackHoleFromControls();
@@ -573,6 +705,27 @@ const app = {
                 position: "bottom-left",
                 highlight: "audio",
                 showNext: false
+            },
+            {
+                title: "Time Dilation",
+                content: "Einstein's General Relativity predicts that time flows slower in stronger gravitational fields. This is visualized with concentric rings - notice how the oscillation slows down closer to the black hole.",
+                position: "bottom",
+                highlightType: "time-dilation",
+                element: "#control-panel"
+            },
+            {
+                title: "Gravitational Lensing",
+                content: "Einstein's theory predicts that massive objects bend light passing nearby. This effect, called gravitational lensing, allows us to see stars that would otherwise be hidden behind the black hole - and creates multiple distorted images of the same star.",
+                position: "bottom",
+                highlightType: "gravitational-lensing",
+                element: "#control-panel"
+            },
+            {
+                title: "Frame Dragging",
+                content: "Rotating black holes don't just warp space, they drag spacetime itself around with them. This phenomenon, called the Lense-Thirring effect or 'frame dragging', creates a swirling vortex in the fabric of spacetime around the black hole.",
+                position: "bottom",
+                highlightType: "frame-dragging",
+                element: "#control-panel"
             }
         ];
         
@@ -628,6 +781,18 @@ const app = {
             {
                 title: "Black Hole Audio",
                 content: "NASA has converted the pressure waves from a supermassive black hole in the Perseus galaxy cluster into sound. The actual pitch is 57 octaves below middle C, so it's been scaled up for human hearing."
+            },
+            {
+                title: "Time Dilation",
+                text: "Einstein's theory of General Relativity predicts that time flows slower in stronger gravitational fields. Near a black hole, this effect becomes extreme, with time nearly stopping at the event horizon. This is visualized with concentric rings where oscillation frequency represents the flow of time."
+            },
+            {
+                title: "Gravitational Lensing",
+                text: "One of the most striking predictions of Einstein's General Relativity is that light bends when passing through curved spacetime. Near a black hole, this effect is so extreme that we can see multiple distorted images of stars that are actually behind the black hole. This phenomenon has been confirmed by astronomical observations and is a key tool in modern astrophysics."
+            },
+            {
+                title: "Frame Dragging",
+                text: "Frame dragging (the Lense-Thirring effect) is the phenomenon where a rotating massive body literally drags the fabric of spacetime around with it. Near a spinning black hole, this effect is so powerful that it forces anything in the vicinity to rotate with the black hole. This has been measured by satellites orbiting Earth and is even more dramatic near black holes."
             }
         ];
         
@@ -906,6 +1071,195 @@ const app = {
                     highlight.style.height = `${rect.height + 20}px`;
                     highlight.style.borderRadius = '50%';
                 }
+                break;
+            
+            case 'time-dilation':
+                highlightElement.className = "highlight-time-dilation";
+                highlightElement.style.top = "50%";
+                highlightElement.style.left = "50%";
+                highlightElement.style.width = "25%";
+                highlightElement.style.height = "25%";
+                highlightElement.style.transform = "translate(-50%, -50%)";
+                
+                // Create pulsing animation
+                setTimeout(() => {
+                    // Make the time dilation control glow
+                    const control = document.getElementById("time-dilation-control");
+                    if (control) {
+                        control.classList.add("highlight-control");
+                        setTimeout(() => {
+                            control.classList.remove("highlight-control");
+                        }, 5000);
+                    }
+                    
+                    // Set max time dilation temporarily
+                    const originalValue = this.blackHoleParams.timeDilationFactor;
+                    this.blackHoleParams.timeDilationFactor = 2.0;
+                    if (this.timeDilationField && this.timeDilationField.material.uniforms) {
+                        this.timeDilationField.material.uniforms.intensity.value = 2.0;
+                        this.timeDilationField.visible = true;
+                    }
+                    
+                    // Update the control display
+                    const timeDilationValue = document.getElementById("time-dilation-value");
+                    const timeDilationControl = document.getElementById("time-dilation-control");
+                    if (timeDilationValue && timeDilationControl) {
+                        timeDilationValue.textContent = "2.0";
+                        timeDilationControl.value = 2.0;
+                    }
+                    
+                    // Reset after demo
+                    setTimeout(() => {
+                        this.blackHoleParams.timeDilationFactor = originalValue;
+                        if (this.timeDilationField && this.timeDilationField.material.uniforms) {
+                            this.timeDilationField.material.uniforms.intensity.value = originalValue;
+                            this.timeDilationField.visible = originalValue > 0;
+                        }
+                        
+                        // Update the control display
+                        if (timeDilationValue && timeDilationControl) {
+                            timeDilationValue.textContent = originalValue.toFixed(1);
+                            timeDilationControl.value = originalValue;
+                        }
+                    }, 5000);
+                }, 500);
+                break;
+            case 'gravitational-lensing':
+                highlightElement.className = "highlight-lensing";
+                highlightElement.style.top = "50%";
+                highlightElement.style.left = "50%";
+                highlightElement.style.width = "70%";
+                highlightElement.style.height = "70%";
+                highlightElement.style.transform = "translate(-50%, -50%)";
+                highlightElement.style.borderRadius = "50%";
+                
+                // Create demonstration effect
+                setTimeout(() => {
+                    // Make the lensing control glow
+                    const control = document.getElementById("lensing-control");
+                    if (control) {
+                        control.classList.add("highlight-control");
+                        setTimeout(() => {
+                            control.classList.remove("highlight-control");
+                        }, 5000);
+                    }
+                    
+                    // Set max lensing temporarily for demonstration
+                    const originalValue = this.blackHoleParams.lensingIntensity;
+                    this.blackHoleParams.lensingIntensity = 2.0;
+                    if (this.lensingStars && this.lensingStars.material.uniforms) {
+                        this.lensingStars.material.uniforms.intensity.value = 2.0;
+                        this.lensingStars.material.uniforms.lensStrength.value = 30.0;
+                        this.lensingStars.visible = true;
+                    }
+                    
+                    // Update the control display
+                    const lensingValue = document.getElementById("lensing-value");
+                    const lensingControl = document.getElementById("lensing-control");
+                    if (lensingValue && lensingControl) {
+                        lensingValue.textContent = "2.0";
+                        lensingControl.value = 2.0;
+                    }
+                    
+                    // Reset after demo
+                    setTimeout(() => {
+                        this.blackHoleParams.lensingIntensity = originalValue;
+                        if (this.lensingStars && this.lensingStars.material.uniforms) {
+                            this.lensingStars.material.uniforms.intensity.value = originalValue;
+                            this.lensingStars.material.uniforms.lensStrength.value = originalValue * 15;
+                            this.lensingStars.visible = originalValue > 0;
+                        }
+                        
+                        // Update the control display
+                        if (lensingValue && lensingControl) {
+                            lensingValue.textContent = originalValue.toFixed(1);
+                            lensingControl.value = originalValue;
+                        }
+                    }, 5000);
+                }, 500);
+                break;
+            case 'frame-dragging':
+                highlightElement.className = "highlight-frame-dragging";
+                highlightElement.style.top = "50%";
+                highlightElement.style.left = "50%";
+                highlightElement.style.width = "60%";
+                highlightElement.style.height = "60%";
+                highlightElement.style.transform = "translate(-50%, -50%)";
+                highlightElement.style.borderRadius = "50%";
+                
+                // Create demonstration effect
+                setTimeout(() => {
+                    // Make the frame dragging control glow
+                    const control = document.getElementById("frame-dragging-control");
+                    if (control) {
+                        control.classList.add("highlight-control");
+                        setTimeout(() => {
+                            control.classList.remove("highlight-control");
+                        }, 5000);
+                    }
+                    
+                    // Also highlight rotation speed control since they work together
+                    const rotationControl = document.getElementById("rotation-control");
+                    if (rotationControl) {
+                        rotationControl.classList.add("highlight-control");
+                        setTimeout(() => {
+                            rotationControl.classList.remove("highlight-control");
+                        }, 5000);
+                    }
+                    
+                    // Store original values
+                    const originalFrameDragging = this.blackHoleParams.frameDraggingFactor;
+                    const originalRotation = this.blackHoleParams.rotationSpeed;
+                    
+                    // Set max frame dragging and rotation temporarily for demonstration
+                    this.blackHoleParams.frameDraggingFactor = 2.0;
+                    this.blackHoleParams.rotationSpeed = 2.0;
+                    
+                    // Update visualizations
+                    if (this.frameDraggingEffect && this.frameDraggingEffect.material.uniforms) {
+                        this.frameDraggingEffect.material.uniforms.intensity.value = 2.0;
+                        this.frameDraggingEffect.material.uniforms.rotationSpeed.value = 4.0; // 2.0 * 2.0
+                        this.frameDraggingEffect.visible = true;
+                    }
+                    
+                    // Update the control displays
+                    const frameDraggingValue = document.getElementById("frame-dragging-value");
+                    const frameDraggingControl = document.getElementById("frame-dragging-control");
+                    if (frameDraggingValue && frameDraggingControl) {
+                        frameDraggingValue.textContent = "2.0";
+                        frameDraggingControl.value = 2.0;
+                    }
+                    
+                    const rotationValue = document.getElementById("rotation-value");
+                    if (rotationControl && rotationValue) {
+                        rotationValue.textContent = "2.0";
+                        rotationControl.value = 2.0;
+                    }
+                    
+                    // Reset after demo
+                    setTimeout(() => {
+                        this.blackHoleParams.frameDraggingFactor = originalFrameDragging;
+                        this.blackHoleParams.rotationSpeed = originalRotation;
+                        
+                        if (this.frameDraggingEffect && this.frameDraggingEffect.material.uniforms) {
+                            this.frameDraggingEffect.material.uniforms.intensity.value = originalFrameDragging;
+                            this.frameDraggingEffect.material.uniforms.rotationSpeed.value = 
+                                originalRotation * originalFrameDragging;
+                            this.frameDraggingEffect.visible = originalFrameDragging > 0;
+                        }
+                        
+                        // Update the control displays
+                        if (frameDraggingValue && frameDraggingControl) {
+                            frameDraggingValue.textContent = originalFrameDragging.toFixed(1);
+                            frameDraggingControl.value = originalFrameDragging;
+                        }
+                        
+                        if (rotationValue && rotationControl) {
+                            rotationValue.textContent = originalRotation.toFixed(1);
+                            rotationControl.value = originalRotation;
+                        }
+                    }, 5000);
+                }, 500);
                 break;
         }
         
@@ -1584,10 +1938,16 @@ const app = {
         this.createHawkingRadiation();
         
         // Create time dilation visualization
-        this.createTimeDilationEffect();
+        this.createTimeDilationField();
         
         // Create magnetic field lines
         this.createMagneticFieldLines();
+        
+        // Create gravitational lensing visualization
+        this.createGravitationalLensing();
+        
+        // Create frame dragging visualization
+        this.createFrameDraggingEffect();
     },
     
     createAccretionDisk() {
@@ -1781,6 +2141,7 @@ const app = {
         const sizes = new Float32Array(particleCount);
         const lifespan = new Float32Array(particleCount);
         const velocity = new Float32Array(particleCount * 3);
+        const particleType = new Float32Array(particleCount); // 0 for in-falling, 1 for escaping
         
         // Calculate black hole properties
         const horizonRadius = this.config.blackHoleRadius;
@@ -1810,57 +2171,82 @@ const app = {
             // Randomize lifespan of particles (will determine their visibility)
             lifespan[i] = Math.random();
             
-            // Set velocity - either outward (escaping) or inward (falling in)
-            // This represents the particle-antiparticle pairs in Hawking radiation
-            // where one escapes and one falls into the black hole
-            const direction = Math.random() > 0.5 ? 1 : -1; // 50% chance of each direction
-            const speed = Math.random() * 0.05 + 0.02;
-            
-            // The velocity is directed radially outward or inward
-            const norm = Math.sqrt(x * x + y * y + z * z);
-            velocity[i * 3] = (x / norm) * speed * direction;
-            velocity[i * 3 + 1] = (y / norm) * speed * direction;
-            velocity[i * 3 + 2] = (z / norm) * speed * direction;
+            // In Hawking radiation, particle-antiparticle pairs are created
+            // One falls into the black hole, one escapes
+            // Generate pairs of particles
+            if (i % 2 === 0) {
+                // Escaping particle (positive energy)
+                particleType[i] = 1.0;
+                const speed = Math.random() * 0.05 + 0.03;
+                
+                // Velocity directed radially outward
+                const norm = Math.sqrt(x * x + y * y + z * z);
+                velocity[i * 3] = (x / norm) * speed;
+                velocity[i * 3 + 1] = (y / norm) * speed;
+                velocity[i * 3 + 2] = (z / norm) * speed;
+            } else {
+                // In-falling particle (negative energy)
+                particleType[i] = 0.0;
+                const speed = Math.random() * 0.05 + 0.02;
+                
+                // Velocity directed radially inward
+                const norm = Math.sqrt(x * x + y * y + z * z);
+                velocity[i * 3] = -(x / norm) * speed;
+                velocity[i * 3 + 1] = -(y / norm) * speed;
+                velocity[i * 3 + 2] = -(z / norm) * speed;
+            }
         }
         
         // Set buffer attributes
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+        geometry.setAttribute('particleType', new THREE.BufferAttribute(particleType, 1));
         
         // Create shader material for Hawking radiation particles
         const material = new THREE.ShaderMaterial({
             uniforms: {
                 time: { value: 0 },
-                color: { value: new THREE.Color(0xC9EEFF) }, // Slight blue for quantum effect
+                escapeColor: { value: new THREE.Color(0xC9EEFF) }, // Blue for escaping particles
+                infallColor: { value: new THREE.Color(0xFF9999) }, // Red for in-falling particles
                 pixelRatio: { value: window.devicePixelRatio },
                 intensity: { value: this.blackHoleParams ? this.blackHoleParams.hawkingIntensity : 1.0 }
             },
             vertexShader: `
                 attribute float size;
+                attribute float particleType;
                 uniform float time;
                 uniform float pixelRatio;
                 uniform float intensity;
                 
                 varying float vAlpha;
+                varying float vParticleType;
                 
                 void main() {
-                    // Pass particle position to fragment shader
+                    // Pass particle position and type to fragment shader
                     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                    vParticleType = particleType;
                     
                     // Adjust point size based on distance to camera and intensity
                     gl_PointSize = size * pixelRatio * (250.0 / -mvPosition.z) * intensity;
                     gl_Position = projectionMatrix * mvPosition;
                     
                     // Calculate alpha based on position and intensity
-                    vAlpha = smoothstep(0.0, 1.0, 1.0 - (length(mvPosition.xyz) / 50.0)) * intensity;
-                    vAlpha *= 0.7; // Keep it subtle
+                    // Make escaping particles more visible than in-falling ones
+                    float visibilityFactor = particleType > 0.5 ? 1.0 : 0.6;
+                    vAlpha = smoothstep(0.0, 1.0, 1.0 - (length(mvPosition.xyz) / 50.0)) * intensity * visibilityFactor;
+                    
+                    // Add temporal variation for quantum fluctuation effect
+                    vAlpha *= 0.7 + 0.3 * sin(time * 5.0 + gl_VertexID * 0.1);
                 }
             `,
             fragmentShader: `
-                uniform vec3 color;
+                uniform vec3 escapeColor;
+                uniform vec3 infallColor;
                 uniform float intensity;
+                uniform float time;
                 
                 varying float vAlpha;
+                varying float vParticleType;
                 
                 void main() {
                     // Circular particles with smooth edges
@@ -1870,7 +2256,13 @@ const app = {
                     // Apply distance-based fading for soft particles
                     float alpha = vAlpha * smoothstep(0.5, 0.2, dist);
                     
-                    gl_FragColor = vec4(color, alpha * intensity);
+                    // Choose color based on particle type
+                    vec3 color = mix(infallColor, escapeColor, vParticleType);
+                    
+                    // Add subtle glow effect for quantum appearance
+                    float glowFactor = 1.0 + 0.2 * sin(time * 3.0 + vParticleType * 6.28);
+                    
+                    gl_FragColor = vec4(color * glowFactor, alpha * intensity);
                 }
             `,
             transparent: true,
@@ -1889,11 +2281,13 @@ const app = {
         this.hawkingRadiationData = {
             positions: positions,
             velocity: velocity,
+            particleType: particleType,
             lifespan: lifespan,
             sizes: sizes,
             particleCount: particleCount,
             horizonRadius: horizonRadius,
-            emissionRadius: emissionRadius
+            emissionRadius: emissionRadius,
+            lastUpdateTime: 0
         };
     },
     
@@ -1904,13 +2298,18 @@ const app = {
         this.hawkingRadiation.material.uniforms.time.value = time;
         
         // Get references to stored data
-        const { positions, velocity, lifespan, particleCount, horizonRadius, emissionRadius } = this.hawkingRadiationData;
+        const { positions, velocity, particleType, lifespan, particleCount, horizonRadius, emissionRadius } = this.hawkingRadiationData;
         
         // Get current intensity
         const intensity = this.blackHoleParams.hawkingIntensity;
         
         // Update geometry for animation
         const positionAttribute = this.hawkingRadiation.geometry.getAttribute('position');
+        
+        // Use time to create a emission rate that depends on intensity
+        // Higher intensity = more frequent emissions
+        const emissionRate = 0.05 * intensity;
+        const emitParticle = Math.random() < emissionRate;
         
         for (let i = 0; i < particleCount; i++) {
             // Calculate current position
@@ -1928,33 +2327,74 @@ const app = {
             
             // Reset particles that get too far away or fall into black hole
             if (distance > 30 || distance < horizonRadius) {
-                // Similar to creation logic - reset at emission radius
-                const phi = Math.random() * Math.PI * 2;
-                const cosTheta = Math.random() * 2 - 1;
-                const sinTheta = Math.sqrt(1 - cosTheta * cosTheta);
-                
-                // Reset position to emission radius
-                x = emissionRadius * sinTheta * Math.cos(phi);
-                y = emissionRadius * sinTheta * Math.sin(phi);
-                z = emissionRadius * cosTheta;
-                
-                // Randomize direction again
-                const direction = Math.random() > 0.5 ? 1 : -1;
-                const speed = Math.random() * 0.05 + 0.02;
-                
-                // Reset velocity
-                const norm = Math.sqrt(x * x + y * y + z * z);
-                velocity[i * 3] = (x / norm) * speed * direction;
-                velocity[i * 3 + 1] = (y / norm) * speed * direction;
-                velocity[i * 3 + 2] = (z / norm) * speed * direction;
+                // Only emit new particles based on emission rate
+                if (emitParticle || i % 20 === 0) { // Ensure minimum activity
+                    // Similar to creation logic - reset at emission radius
+                    const phi = Math.random() * Math.PI * 2;
+                    const cosTheta = Math.random() * 2 - 1;
+                    const sinTheta = Math.sqrt(1 - cosTheta * cosTheta);
+                    
+                    // Reset position to emission radius
+                    x = emissionRadius * sinTheta * Math.cos(phi);
+                    y = emissionRadius * sinTheta * Math.sin(phi);
+                    z = emissionRadius * cosTheta;
+                    
+                    // Create new particle pair
+                    if (i % 2 === 0) {
+                        // Escaping particle (positive energy)
+                        particleType[i] = 1.0;
+                        const speed = Math.random() * 0.05 + 0.03;
+                        
+                        // Velocity directed radially outward
+                        const norm = Math.sqrt(x * x + y * y + z * z);
+                        velocity[i * 3] = (x / norm) * speed;
+                        velocity[i * 3 + 1] = (y / norm) * speed;
+                        velocity[i * 3 + 2] = (z / norm) * speed;
+                    } else {
+                        // In-falling particle (negative energy)
+                        particleType[i] = 0.0;
+                        const speed = Math.random() * 0.05 + 0.02;
+                        
+                        // Velocity directed radially inward
+                        const norm = Math.sqrt(x * x + y * y + z * z);
+                        velocity[i * 3] = -(x / norm) * speed;
+                        velocity[i * 3 + 1] = -(y / norm) * speed;
+                        velocity[i * 3 + 2] = -(z / norm) * speed;
+                    }
+                } else {
+                    // For particles we don't reset, make them invisible by moving far away
+                    x = 1000;
+                    y = 1000;
+                    z = 1000;
+                }
             }
+            
+            // Add slight gravitational influence for more realism
+            // Get direction vector to black hole center
+            const dir = new THREE.Vector3(-x, -y, -z).normalize();
+            const gravitationalFactor = 0.001 / (distance * distance) * horizonRadius;
+            
+            // Apply gravitational influence more strongly to in-falling particles
+            const particleGravityFactor = particleType[i] > 0.5 ? 0.2 : 1.0;
+            
+            // Add gravitational velocity component
+            velocity[i * 3] += dir.x * gravitationalFactor * particleGravityFactor;
+            velocity[i * 3 + 1] += dir.y * gravitationalFactor * particleGravityFactor;
+            velocity[i * 3 + 2] += dir.z * gravitationalFactor * particleGravityFactor;
             
             // Update position
             positionAttribute.setXYZ(i, x, y, z);
         }
         
-        // Mark the attribute for update
+        // Mark attributes for update
         positionAttribute.needsUpdate = true;
+        
+        // Also update the particleType attribute to keep it in sync
+        const particleTypeAttribute = this.hawkingRadiation.geometry.getAttribute('particleType');
+        for (let i = 0; i < particleCount; i++) {
+            particleTypeAttribute.setX(i, particleType[i]);
+        }
+        particleTypeAttribute.needsUpdate = true;
     },
     
     createMagneticFieldLines() {
@@ -3460,8 +3900,10 @@ const app = {
         // Update Hawking radiation particles
         this.updateHawkingRadiation(elapsedTime);
         
-        // Update time dilation visualization
-        this.updateTimeDilation(elapsedTime);
+        // Update time dilation field if it exists
+        if (this.timeDilationField && this.timeDilationField.visible) {
+            this.timeDilationField.material.uniforms.time.value = elapsedTime;
+        }
         
         // Update magnetic field lines
         if (this.magneticFieldLines) {
@@ -3485,6 +3927,33 @@ const app = {
         
         if (this.nebula && this.nebula.material.uniforms) {
             this.nebula.material.uniforms.time.value = elapsedTime;
+        }
+        
+        // Update gravitational lensing
+        if (this.lensingStars && this.lensingStars.visible) {
+            this.lensingStars.material.uniforms.time.value = elapsedTime;
+            
+            // Update black hole radius in shader (in case it changed)
+            this.lensingStars.material.uniforms.blackHoleRadius.value = this.blackHoleParams.radius;
+        }
+        
+        // Update frame dragging effect
+        if (this.frameDraggingEffect && this.frameDraggingEffect.visible) {
+            this.frameDraggingEffect.material.uniforms.time.value = elapsedTime;
+            this.frameDraggingEffect.material.uniforms.blackHoleRadius.value = this.blackHoleParams.radius;
+            this.frameDraggingEffect.material.uniforms.rotationSpeed.value = 
+                this.blackHoleParams.rotationSpeed * this.blackHoleParams.frameDraggingFactor;
+            
+            // Update rotation speed when user changes the rotation value
+            const rotationControl = document.getElementById('rotation-control');
+            if (rotationControl) {
+                rotationControl.addEventListener('input', () => {
+                    if (this.frameDraggingEffect && this.frameDraggingEffect.material.uniforms) {
+                        this.frameDraggingEffect.material.uniforms.rotationSpeed.value = 
+                            this.blackHoleParams.rotationSpeed * this.blackHoleParams.frameDraggingFactor;
+                    }
+                });
+            }
         }
         
         // Update particles
@@ -4269,6 +4738,655 @@ const app = {
             // Start animation
             animateQuantumParticle();
         }
+    },
+    
+    createTimeDilationField() {
+        // Skip if disabled in config
+        if (!this.config.timeDilationEnabled) return;
+        
+        // Create geometry for time dilation field
+        const ringCount = this.config.devicePerformance === 'low' ? 50 : 100;
+        const segmentCount = this.config.devicePerformance === 'low' ? 64 : 128;
+        
+        // Create a geometry that consists of concentric rings
+        const geometry = new THREE.BufferGeometry();
+        
+        // Calculate vertices, colors and other attributes
+        const vertices = [];
+        const colors = [];
+        const dilationFactors = [];
+        const timeOffsets = [];
+        
+        // Create concentric rings with varying attributes
+        for (let ring = 0; ring < ringCount; ring++) {
+            const radius = this.config.blackHoleRadius * 1.5 + (ring * 0.5);
+            
+            // Time dilation factor - closer to black hole, higher the factor
+            // Einstein's equation: sqrt(1 - 2GM/rc²)
+            // Simplified version for visualization
+            const dilationFactor = 1 / Math.sqrt(1 + 10 / radius);
+            
+            for (let segment = 0; segment <= segmentCount; segment++) {
+                const theta = (segment / segmentCount) * Math.PI * 2;
+                
+                // Calculate position
+                const x = radius * Math.cos(theta);
+                const y = radius * Math.sin(theta);
+                const z = 0; // Keep in xy plane for simplicity
+                
+                // Add vertex
+                vertices.push(x, y, z);
+                
+                // Color gradient based on time dilation (red = slow, blue = normal)
+                const red = 1 - dilationFactor;
+                const green = 0.5 * dilationFactor;
+                const blue = dilationFactor;
+                colors.push(red, green, blue);
+                
+                // Store dilation factor for shader
+                dilationFactors.push(dilationFactor);
+                
+                // Random time offset for animation
+                timeOffsets.push(Math.random() * 10);
+            }
+        }
+        
+        // Create indices for rendering line segments
+        const indices = [];
+        for (let ring = 0; ring < ringCount; ring++) {
+            const verticesInRing = segmentCount + 1;
+            const startIndex = ring * verticesInRing;
+            
+            for (let segment = 0; segment < segmentCount; segment++) {
+                indices.push(startIndex + segment, startIndex + segment + 1);
+            }
+        }
+        
+        // Set attributes
+        geometry.setIndex(indices);
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+        geometry.setAttribute('dilationFactor', new THREE.Float32BufferAttribute(dilationFactors, 1));
+        geometry.setAttribute('timeOffset', new THREE.Float32BufferAttribute(timeOffsets, 1));
+        
+        // Create shader material for time dilation visualization
+        const material = new THREE.ShaderMaterial({
+            uniforms: {
+                time: { value: 0 },
+                intensity: { value: this.blackHoleParams.timeDilationFactor },
+                blackHolePosition: { value: new THREE.Vector3(0, 0, 0) }
+            },
+            vertexShader: `
+                attribute vec3 color;
+                attribute float dilationFactor;
+                attribute float timeOffset;
+                
+                uniform float time;
+                uniform float intensity;
+                uniform vec3 blackHolePosition;
+                
+                varying vec3 vColor;
+                varying float vVisibility;
+                
+                void main() {
+                    // Pass color to fragment shader
+                    vColor = color;
+                    
+                    // Calculate position with time dilation effect
+                    vec3 pos = position;
+                    
+                    // Distance from black hole
+                    float distance = length(pos - blackHolePosition);
+                    
+                    // Apply time dilation effect
+                    // Points closer to black hole oscillate slower
+                    float timeDelayFactor = dilationFactor; // 0-1, lower near black hole
+                    float localTime = time * timeDelayFactor + timeOffset;
+                    
+                    // Vertical oscillation based on time dilation
+                    // This creates the "clock ticking" visualization
+                    float waveHeight = 0.05 * intensity / dilationFactor;
+                    pos.z += sin(localTime * 5.0) * waveHeight;
+                    
+                    // Calculate visibility based on distance and intensity
+                    vVisibility = dilationFactor * intensity;
+                    
+                    // Apply position
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+                    
+                    // Use point size to represent time dilation "stretching"
+                    gl_PointSize = 2.0;
+                }
+            `,
+            fragmentShader: `
+                varying vec3 vColor;
+                varying float vVisibility;
+                
+                void main() {
+                    if (vVisibility < 0.1) discard;
+                    
+                    // Apply color gradient and visibility
+                    gl_FragColor = vec4(vColor, vVisibility);
+                }
+            `,
+            vertexColors: true,
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
+        });
+        
+        // Create the time dilation field and add to scene
+        this.timeDilationField = new THREE.LineSegments(geometry, material);
+        
+        // Position slightly above the black hole to avoid z-fighting
+        this.timeDilationField.position.z = 0.1;
+        this.timeDilationField.rotation.x = Math.PI / 2; // Make it face the camera
+        
+        // Set initial visibility based on intensity
+        this.timeDilationField.visible = this.blackHoleParams.timeDilationFactor > 0;
+        
+        // Add to scene
+        this.scene.add(this.timeDilationField);
+    },
+    
+    // Add a new method to create the time dilation sound effect
+    createTimeDilationSound(intensity) {
+        if (!this.audioContext) return;
+        
+        // Create oscillator for time dilation effect
+        const oscillator = this.audioContext.createOscillator();
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(100 + intensity * 50, this.audioContext.currentTime);
+        
+        // Create filter for time dilation effect
+        const filter = this.audioContext.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(500 + intensity * 200, this.audioContext.currentTime);
+        filter.Q.setValueAtTime(10, this.audioContext.currentTime);
+        
+        // Create gain node for time dilation effect
+        const gainNode = this.audioContext.createGain();
+        gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.1 * intensity, this.audioContext.currentTime + 0.05);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 1.5);
+        
+        // Connect nodes
+        oscillator.connect(filter);
+        filter.connect(gainNode);
+        gainNode.connect(this.audioContext.destination);
+        
+        // Start and stop
+        oscillator.start();
+        oscillator.stop(this.audioContext.currentTime + 1.5);
+    },
+    
+    createLensingSound(intensity) {
+        if (!this.audioContext) return;
+        
+        // Create oscillator for lensing effect sound
+        const oscillator = this.audioContext.createOscillator();
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(200 + intensity * 100, this.audioContext.currentTime);
+        
+        // Create filter for spacetime bending sound
+        const filter = this.audioContext.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(300 + intensity * 400, this.audioContext.currentTime);
+        filter.Q.setValueAtTime(15, this.audioContext.currentTime);
+        
+        // Create gain node for lensing effect
+        const gainNode = this.audioContext.createGain();
+        gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.15 * intensity, this.audioContext.currentTime + 0.05);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 1.2);
+        
+        // Add a touch of reverb for spatial effect
+        const convolver = this.createReverb(0.8);
+        
+        // Connect nodes
+        oscillator.connect(filter);
+        filter.connect(gainNode);
+        
+        if (convolver) {
+            gainNode.connect(convolver);
+            convolver.connect(this.audioContext.destination);
+        } else {
+            gainNode.connect(this.audioContext.destination);
+        }
+        
+        // Start and stop
+        oscillator.start();
+        oscillator.stop(this.audioContext.currentTime + 1.2);
+        
+        // Add a subtle frequency sweep for bending light effect
+        oscillator.frequency.linearRampToValueAtTime(
+            150 + intensity * 80, 
+            this.audioContext.currentTime + 1.0
+        );
+    },
+    
+    createGravitationalLensing() {
+        // Skip if disabled in config
+        if (!this.config.lensingEnabled) return;
+        
+        // Determine star count based on device performance
+        const starCount = this.config.devicePerformance === 'low' ? 1000 : 3000;
+        
+        // Create background star field geometry
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(starCount * 3);
+        const sizes = new Float32Array(starCount);
+        const colors = new Float32Array(starCount * 3);
+        
+        // Create stars distributed in a spherical shell around the scene
+        for (let i = 0; i < starCount; i++) {
+            // Use spherical coordinates to distribute stars evenly
+            const phi = Math.random() * Math.PI * 2; // Azimuthal angle (0 to 2π)
+            const theta = Math.acos(2 * Math.random() - 1); // Polar angle (0 to π)
+            
+            // Set a large radius for background stars
+            const radius = 80 + Math.random() * 20; // 80-100 units
+            
+            // Convert to Cartesian coordinates
+            const x = radius * Math.sin(theta) * Math.cos(phi);
+            const y = radius * Math.sin(theta) * Math.sin(phi);
+            const z = radius * Math.cos(theta);
+            
+            // Set star position
+            positions[i * 3] = x;
+            positions[i * 3 + 1] = y;
+            positions[i * 3 + 2] = z;
+            
+            // Vary star sizes
+            sizes[i] = Math.random() * 0.5 + 0.1;
+            
+            // Set star colors - mostly white/blue with some variation
+            const colorChoice = Math.random();
+            
+            if (colorChoice < 0.7) {
+                // White/blue stars (most common)
+                const blueShift = Math.random() * 0.3;
+                colors[i * 3] = 0.9 - blueShift; // R
+                colors[i * 3 + 1] = 0.9; // G
+                colors[i * 3 + 2] = 1.0; // B
+            } else if (colorChoice < 0.85) {
+                // Yellowish stars
+                colors[i * 3] = 1.0; // R
+                colors[i * 3 + 1] = 1.0; // G
+                colors[i * 3 + 2] = 0.7; // B
+            } else if (colorChoice < 0.95) {
+                // Reddish stars
+                colors[i * 3] = 1.0; // R
+                colors[i * 3 + 1] = 0.5 + Math.random() * 0.3; // G
+                colors[i * 3 + 2] = 0.5; // B
+            } else {
+                // A few blue giants
+                colors[i * 3] = 0.5; // R
+                colors[i * 3 + 1] = 0.7; // G
+                colors[i * 3 + 2] = 1.0; // B
+            }
+        }
+        
+        // Set buffer attributes
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        
+        // Create shader material for gravitational lensing stars
+        const material = new THREE.ShaderMaterial({
+            uniforms: {
+                blackHolePosition: { value: new THREE.Vector3(0, 0, 0) },
+                blackHoleRadius: { value: this.config.blackHoleRadius },
+                lensStrength: { value: this.blackHoleParams.lensingIntensity * 15 },
+                intensity: { value: this.blackHoleParams.lensingIntensity },
+                pixelRatio: { value: window.devicePixelRatio },
+                time: { value: 0 }
+            },
+            vertexShader: `
+                attribute float size;
+                attribute vec3 color;
+                
+                uniform vec3 blackHolePosition;
+                uniform float blackHoleRadius;
+                uniform float lensStrength;
+                uniform float intensity;
+                uniform float pixelRatio;
+                uniform float time;
+                
+                varying vec3 vColor;
+                varying float vDistortion;
+                
+                // Function to calculate gravitational lensing effect
+                vec3 applyGravitationalLensing(vec3 position) {
+                    // Vector from black hole to star
+                    vec3 directionToStar = position - blackHolePosition;
+                    float distanceToBlackHole = length(directionToStar);
+                    
+                    // Normalize for direction calculations
+                    vec3 direction = normalize(directionToStar);
+                    
+                    // Calculate lensing effect - stronger when closer to black hole
+                    // but not inside event horizon
+                    float lensEffect = 0.0;
+                    
+                    if (distanceToBlackHole > blackHoleRadius * 1.1) {
+                        // Simplified gravitational lensing equation
+                        // Based on Einstein's relativity - light bends more when passing closer to mass
+                        lensEffect = lensStrength * blackHoleRadius / (distanceToBlackHole * distanceToBlackHole);
+                        
+                        // Calculate tangential vector (perpendicular to radial direction)
+                        vec3 tangent = normalize(cross(direction, vec3(0.0, 0.0, 1.0)));
+                        if (length(tangent) < 0.1) {
+                            tangent = normalize(cross(direction, vec3(0.0, 1.0, 0.0)));
+                        }
+                        
+                        // Apply lensing effect tangentially around black hole
+                        // This creates the characteristic circular distortion
+                        position += tangent * lensEffect * intensity;
+                        
+                        // Store distortion amount for fragment shader to use for visual effects
+                        vDistortion = lensEffect * intensity;
+                    } else {
+                        // Inside or very near event horizon - maximum distortion
+                        vDistortion = 1.0;
+                    }
+                    
+                    return position;
+                }
+                
+                void main() {
+                    // Apply gravitational lensing to star positions
+                    vec3 lensedPosition = applyGravitationalLensing(position);
+                    
+                    // Transform to view space
+                    vec4 mvPosition = modelViewMatrix * vec4(lensedPosition, 1.0);
+                    
+                    // Set point size, scaled by device pixel ratio
+                    gl_PointSize = size * pixelRatio * (300.0 / -mvPosition.z);
+                    
+                    // Apply slight twinkle effect
+                    gl_PointSize *= 0.9 + 0.2 * sin(time * 2.0 + gl_VertexID * 0.1);
+                    
+                    // Set position
+                    gl_Position = projectionMatrix * mvPosition;
+                    
+                    // Pass color to fragment shader
+                    vColor = color;
+                }
+            `,
+            fragmentShader: `
+                varying vec3 vColor;
+                varying float vDistortion;
+                
+                void main() {
+                    // Calculate distance from center of point (for circular stars)
+                    float dist = length(gl_PointCoord - vec2(0.5));
+                    
+                    // Discard pixels outside circle
+                    if (dist > 0.5) discard;
+                    
+                    // Add soft edge to stars
+                    float alpha = smoothstep(0.5, 0.2, dist);
+                    
+                    // Add glow effect based on lensing distortion
+                    vec3 finalColor = vColor;
+                    if (vDistortion > 0.01) {
+                        // Add a slight blue shift when stars are distorted by gravity
+                        float blueShift = vDistortion * 2.0;
+                        finalColor.b = min(1.0, finalColor.b + blueShift);
+                        
+                        // Increase brightness with distortion
+                        finalColor *= (1.0 + vDistortion * 0.5);
+                    }
+                    
+                    // Set final color with alpha
+                    gl_FragColor = vec4(finalColor, alpha);
+                }
+            `,
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
+        });
+        
+        // Create the lensing stars system and add to scene
+        this.lensingStars = new THREE.Points(geometry, material);
+        
+        // Set initial visibility based on intensity
+        this.lensingStars.visible = this.blackHoleParams.lensingIntensity > 0;
+        
+        // Add to scene
+        this.scene.add(this.lensingStars);
+    },
+    
+    createFrameDraggingEffect() {
+        // Skip if disabled in config
+        if (!this.config.frameDraggingEnabled) return;
+        
+        // Create geometry for the frame dragging effect
+        const segments = this.config.devicePerformance === 'low' ? 64 : 128;
+        const rings = this.config.devicePerformance === 'low' ? 10 : 20;
+        
+        // Use THREE.BufferGeometry for better performance
+        const geometry = new THREE.BufferGeometry();
+        
+        // Calculate vertices, colors and distances
+        const positions = [];
+        const colors = [];
+        const distances = [];
+        const rotationFactors = [];
+        
+        // Create spiral rings to visualize the frame dragging effect
+        // This represents how space itself is dragged around a rotating black hole
+        for (let ring = 0; ring < rings; ring++) {
+            const baseRadius = this.config.blackHoleRadius * 2 + ring * 1.5;
+            const ringThickness = 0.2 + ring * 0.05;
+            
+            // Each ring gets its own segment count for varied density
+            const ringSegments = segments - Math.floor(ring * 2);
+            
+            for (let segment = 0; segment < ringSegments; segment++) {
+                // Calculate angle with progressive rotation to create spiral effect
+                const progress = segment / ringSegments;
+                const theta = progress * Math.PI * 2;
+                
+                // Calculate radius with slight variations for organic look
+                const radius = baseRadius + (Math.sin(theta * 8) * ringThickness);
+                
+                // Position on ring with calculated angle
+                const x = Math.cos(theta) * radius;
+                const y = Math.sin(theta) * radius;
+                
+                // Vary z position slightly to create volume
+                const z = (Math.random() - 0.5) * ringThickness;
+                
+                // Add point
+                positions.push(x, y, z);
+                
+                // Color gradient based on distance from black hole
+                // Purple closer to black hole, cyan farther away
+                const distanceNormalized = (ring / rings);
+                const r = 0.5 - distanceNormalized * 0.3;
+                const g = 0.2 + distanceNormalized * 0.6;
+                const b = 0.8;
+                colors.push(r, g, b);
+                
+                // Store distance from center for shader calculations
+                distances.push(radius);
+                
+                // Store rotation factor for each point based on distance
+                // Closer points rotate faster (Lense-Thirring effect)
+                const rotationFactor = 1 / (radius * 0.2);
+                rotationFactors.push(rotationFactor);
+            }
+        }
+        
+        // Convert arrays to typed arrays for geometry attributes
+        const positionAttribute = new THREE.Float32BufferAttribute(positions, 3);
+        const colorAttribute = new THREE.Float32BufferAttribute(colors, 3);
+        const distanceAttribute = new THREE.Float32BufferAttribute(distances, 1);
+        const rotationFactorAttribute = new THREE.Float32BufferAttribute(rotationFactors, 1);
+        
+        // Set geometry attributes
+        geometry.setAttribute('position', positionAttribute);
+        geometry.setAttribute('color', colorAttribute);
+        geometry.setAttribute('distance', distanceAttribute);
+        geometry.setAttribute('rotationFactor', rotationFactorAttribute);
+        
+        // Create shader material for the frame dragging effect
+        const material = new THREE.ShaderMaterial({
+            uniforms: {
+                time: { value: 0 },
+                intensity: { value: this.blackHoleParams.frameDraggingFactor },
+                rotationSpeed: { value: this.blackHoleParams.rotationSpeed },
+                blackHoleRadius: { value: this.blackHoleParams.radius },
+                pixelRatio: { value: window.devicePixelRatio }
+            },
+            vertexShader: `
+                attribute vec3 color;
+                attribute float distance;
+                attribute float rotationFactor;
+                
+                uniform float time;
+                uniform float intensity;
+                uniform float rotationSpeed;
+                uniform float blackHoleRadius;
+                uniform float pixelRatio;
+                
+                varying vec3 vColor;
+                varying float vAlpha;
+                
+                void main() {
+                    // Pass color to fragment shader
+                    vColor = color;
+                    
+                    // Start with original position
+                    vec3 pos = position;
+                    
+                    // Apply frame dragging effect - space rotating around the black hole
+                    // The Lense-Thirring effect strength decreases with distance (1/r³ in theory)
+                    // We'll use a simplified version here
+                    
+                    // Calculate rotation angle based on:
+                    // 1. Time (animation speed)
+                    // 2. Rotation speed parameter (user control)
+                    // 3. Distance from black hole (closer = faster rotation)
+                    // 4. Intensity parameter (user control)
+                    float rotationAngle = time * rotationSpeed * rotationFactor * intensity;
+                    
+                    // Create rotation matrix for XY plane (around Z axis)
+                    float cosA = cos(rotationAngle);
+                    float sinA = sin(rotationAngle);
+                    mat2 rotationMatrix = mat2(cosA, -sinA, sinA, cosA);
+                    
+                    // Apply rotation to XY coordinates
+                    vec2 rotatedPos = rotationMatrix * vec2(pos.x, pos.y);
+                    pos.x = rotatedPos.x;
+                    pos.y = rotatedPos.y;
+                    
+                    // Add subtle z-direction oscillation for volumetric effect
+                    pos.z += sin(time * 2.0 + distance * 0.1) * 0.2 * intensity;
+                    
+                    // Apply subtle radial breathing effect
+                    float breathingFactor = 1.0 + sin(time * 0.5) * 0.05 * intensity;
+                    pos.x *= breathingFactor;
+                    pos.y *= breathingFactor;
+                    
+                    // Calculate alpha based on intensity and distance
+                    float distanceFactor = clamp(blackHoleRadius * 3.0 / distance, 0.0, 1.0);
+                    vAlpha = distanceFactor * intensity * 0.7;
+                    
+                    // Set position
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+                    
+                    // Set point size
+                    gl_PointSize = (3.0 - distance / 40.0) * pixelRatio;
+                }
+            `,
+            fragmentShader: `
+                varying vec3 vColor;
+                varying float vAlpha;
+                
+                void main() {
+                    // Create soft circular points
+                    float dist = length(gl_PointCoord - vec2(0.5));
+                    float alpha = smoothstep(0.5, 0.3, dist) * vAlpha;
+                    
+                    // Set final color with alpha
+                    gl_FragColor = vec4(vColor, alpha);
+                }
+            `,
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
+        });
+        
+        // Create the points system for frame dragging
+        this.frameDraggingEffect = new THREE.Points(geometry, material);
+        
+        // Position just above the accretion disk to avoid z-fighting
+        this.frameDraggingEffect.position.z = 0.2;
+        
+        // Set initial visibility based on intensity
+        this.frameDraggingEffect.visible = this.blackHoleParams.frameDraggingFactor > 0;
+        
+        // Add to scene
+        this.scene.add(this.frameDraggingEffect);
+    },
+    
+    createFrameDraggingSound(intensity) {
+        if (!this.audioContext) return;
+        
+        // Create oscillator for frame dragging effect sound
+        const oscillator = this.audioContext.createOscillator();
+        oscillator.type = 'sawtooth';
+        oscillator.frequency.setValueAtTime(80 + intensity * 40, this.audioContext.currentTime);
+        
+        // Create filter for the swirling spacetime sound
+        const filter = this.audioContext.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(200 + intensity * 300, this.audioContext.currentTime);
+        filter.Q.setValueAtTime(5, this.audioContext.currentTime);
+        
+        // Create gain node for frame dragging effect
+        const gainNode = this.audioContext.createGain();
+        gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.15 * intensity, this.audioContext.currentTime + 0.1);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 1.5);
+        
+        // Add a rotational effect to the sound
+        const rotationSpeed = this.blackHoleParams.rotationSpeed;
+        
+        // LFO for rotation effect
+        const lfo = this.audioContext.createOscillator();
+        lfo.type = 'sine';
+        lfo.frequency.value = 0.5 + rotationSpeed * 1.5;
+        
+        // LFO gain to control modulation depth
+        const lfoGain = this.audioContext.createGain();
+        lfoGain.gain.value = 150 * intensity;
+        
+        // Connect LFO to filter frequency for swirling effect
+        lfo.connect(lfoGain);
+        lfoGain.connect(filter.frequency);
+        
+        // Connect the main audio nodes
+        oscillator.connect(filter);
+        filter.connect(gainNode);
+        gainNode.connect(this.audioContext.destination);
+        
+        // Start oscillators
+        oscillator.start();
+        lfo.start();
+        
+        // Stop oscillators
+        oscillator.stop(this.audioContext.currentTime + 1.5);
+        lfo.stop(this.audioContext.currentTime + 1.5);
+        
+        // Add a frequency sweep for dragging effect
+        oscillator.frequency.linearRampToValueAtTime(
+            60 + intensity * 30, 
+            this.audioContext.currentTime + 1.5
+        );
     }
 };
 

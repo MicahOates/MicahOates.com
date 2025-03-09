@@ -1020,14 +1020,26 @@ body.light-mode .content-container::-webkit-scrollbar-thumb:hover {
 }
 
 .highlight-lensing {
-    width: 350px;
-    height: 350px;
-    border-radius: 50%;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    border-style: dashed;
+    position: absolute;
+    border: 3px solid var(--secondary);
+    box-shadow: 0 0 25px var(--secondary), inset 0 0 15px var(--secondary);
     opacity: 0.3;
+    animation: lensing-pulse 3s infinite;
+    pointer-events: none;
+    z-index: 1000;
+}
+
+@keyframes lensing-pulse {
+    0% { transform: translate(-50%, -50%) scale(1); opacity: 0.3; box-shadow: 0 0 25px var(--secondary), inset 0 0 15px var(--secondary); }
+    33% { transform: translate(-50%, -50%) scale(1.1); opacity: 0.4; box-shadow: 0 0 40px var(--secondary), inset 0 0 20px var(--secondary); }
+    66% { transform: translate(-50%, -50%) scale(0.95); opacity: 0.35; box-shadow: 0 0 30px var(--secondary), inset 0 0 12px var(--secondary); }
+    100% { transform: translate(-50%, -50%) scale(1); opacity: 0.3; box-shadow: 0 0 25px var(--secondary), inset 0 0 15px var(--secondary); }
+}
+
+/* Gravitational lensing appearance in light mode */
+body.light-mode .highlight-lensing {
+    border-color: var(--secondary);
+    box-shadow: 0 0 25px var(--secondary-glow), inset 0 0 15px var(--secondary-glow);
 }
 
 /* Info Button and Panel */
@@ -1486,4 +1498,65 @@ body.light-mode #random-controls:hover {
         right: 70px;
         bottom: 15px;
     }
+}
+
+/* Add time dilation highlight styles */
+.highlight-time-dilation {
+    position: absolute;
+    border: 2px solid var(--primary);
+    box-shadow: 0 0 20px var(--primary), inset 0 0 10px var(--primary);
+    border-radius: 50%;
+    opacity: 0.4;
+    animation: time-dilation-pulse 2s infinite;
+    pointer-events: none;
+    z-index: 1000;
+}
+
+@keyframes time-dilation-pulse {
+    0% { transform: translate(-50%, -50%) scale(1); opacity: 0.4; }
+    50% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.6; }
+    100% { transform: translate(-50%, -50%) scale(1); opacity: 0.4; }
+}
+
+/* Time dilation control highlight */
+.control-group input[type="range"].highlight-control {
+    box-shadow: 0 0 10px var(--primary), 0 0 20px var(--primary);
+    animation: control-highlight-pulse 1s infinite;
+}
+
+@keyframes control-highlight-pulse {
+    0% { box-shadow: 0 0 10px var(--primary), 0 0 20px var(--primary); }
+    50% { box-shadow: 0 0 15px var(--primary), 0 0 30px var(--primary-glow); }
+    100% { box-shadow: 0 0 10px var(--primary), 0 0 20px var(--primary); }
+}
+
+/* Time dilation field appearance in light mode */
+body.light-mode .highlight-time-dilation {
+    border-color: var(--primary);
+    box-shadow: 0 0 20px var(--primary-glow), inset 0 0 10px var(--primary-glow);
+}
+
+/* Add frame dragging highlight styles */
+.highlight-frame-dragging {
+    position: absolute;
+    border: 2px solid rgba(132, 50, 255, 0.7);
+    box-shadow: 0 0 30px rgba(132, 50, 255, 0.5), inset 0 0 20px rgba(132, 50, 255, 0.3);
+    opacity: 0.5;
+    animation: frame-dragging-pulse 5s linear infinite;
+    pointer-events: none;
+    z-index: 1000;
+}
+
+@keyframes frame-dragging-pulse {
+    0% { transform: translate(-50%, -50%) rotate(0deg) scale(1); border-color: rgba(132, 50, 255, 0.7); }
+    25% { transform: translate(-50%, -50%) rotate(90deg) scale(1.05); border-color: rgba(50, 100, 255, 0.7); }
+    50% { transform: translate(-50%, -50%) rotate(180deg) scale(1); border-color: rgba(50, 180, 255, 0.7); }
+    75% { transform: translate(-50%, -50%) rotate(270deg) scale(0.95); border-color: rgba(50, 100, 255, 0.7); }
+    100% { transform: translate(-50%, -50%) rotate(360deg) scale(1); border-color: rgba(132, 50, 255, 0.7); }
+}
+
+/* Frame dragging light mode styles */
+body.light-mode .highlight-frame-dragging {
+    border-color: rgba(100, 50, 200, 0.7);
+    box-shadow: 0 0 30px rgba(100, 50, 200, 0.5), inset 0 0 20px rgba(100, 50, 200, 0.3);
 }
