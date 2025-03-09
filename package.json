@@ -1,5 +1,29 @@
 {
   "dependencies": {
     "three": "^0.174.0"
-  }
+  },
+  "name": "micahoates.com",
+  "version": "1.0.0",
+  "description": "A technical marvel simulating a black hole with quantum-inspired navigation orbs and a personal data hub.",
+  "main": "index.js",
+  "devDependencies": {
+    "vite": "^5.0.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MicahOates/MicahOates.com.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/MicahOates/MicahOates.com/issues"
+  },
+  "homepage": "https://github.com/MicahOates/MicahOates.com#readme"
 }

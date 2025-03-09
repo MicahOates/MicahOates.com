@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://unpkg.com" crossorigin>
     <link rel="preload" href="css/styles.css" as="style">
-    <link rel="preload" href="js/main.js" as="script">
+    <link rel="preload" href="js/main.js" as="script" crossorigin>
     
     <!-- SEO Meta Tags -->
     <meta name="keywords" content="Micah Oates, web developer, creative coder, interactive design, portfolio, WebGL, Three.js">
@@ -158,8 +158,14 @@
     </section>
 
     <!-- Scripts -->
-    <!-- Plausible Analytics - less likely to be blocked -->
-    <script defer data-domain="micahoates.com" src="https://plausible.io/js/script.tagged-events.js"></script>
+    <!-- Plausible Analytics - with development fallback -->
+    <script>
+        // Mock Plausible in development to avoid errors
+        window.plausible = function(event, options) {
+            console.log('Plausible event:', event, options);
+        };
+    </script>
+    <script defer data-domain="micahoates.com" src="https://plausible.io/js/script.tagged-events.js" onError="console.log('Plausible analytics blocked or unavailable')"></script>
     
     <!-- Update Three.js loading to use ES modules format -->
     <script type="importmap">

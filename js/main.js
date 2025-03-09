@@ -1,3 +1,10 @@
+// Import Three.js and required modules
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+
 // Three.js setup - using modern ES6 architecture
 const app = {
     scene: null,
@@ -5430,24 +5437,10 @@ const app = {
     }
 };
 
-// Initialize application
+// Make app globally available for HTML scripts
+window.app = app;
+
+// Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
-    // Load any polyfills or dependencies first
-    if (!THREE.EffectComposer) {
-        // Create simple replacements if full Three.js post-processing not available
-        THREE.EffectComposer = function(renderer) {
-            this.renderer = renderer;
-            this.passes = [];
-            this.render = function() { renderer.render(app.scene, app.camera); };
-            this.addPass = function(pass) { this.passes.push(pass); };
-            this.setSize = function(w, h) { /* no-op */ };
-        };
-        
-        THREE.RenderPass = function(scene, camera) { this.uniforms = {}; };
-        THREE.ShaderPass = function(shader) { this.uniforms = shader.uniforms || {}; };
-        THREE.UnrealBloomPass = function() { this.uniforms = {}; };
-    }
-    
-    // Initialize app
     app.init();
 });
