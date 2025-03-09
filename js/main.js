@@ -51,6 +51,9 @@ const app = {
         // Detect performance to adjust settings
         this.detectPerformance();
         
+        // Create cosmic background with stars
+        this.createCosmicBackground();
+        
         // Initialize components
         this.initBlackHole();
         this.initParticles();
@@ -59,6 +62,12 @@ const app = {
         this.initEventListeners();
         this.initTouchControls();
         
+        // Create interactive controls for black hole parameters
+        this.createBlackHoleControls();
+        
+        // Create interactive tutorial system
+        this.initTutorialSystem();
+        
         // Hide loader when everything is ready
         setTimeout(() => {
             this.hideLoader();
@@ -66,10 +75,774 @@ const app = {
             
             // Start ambient sound
             this.playAmbientSound();
+            
+            // Show welcome tooltip after a brief delay
+            setTimeout(() => {
+                if (!localStorage.getItem('tutorialSeen')) {
+                    this.showTutorialStep(0);
+                }
+            }, 2000);
         }, 1500);
         
         // Start animation loop
         this.animate();
+    },
+    
+    createBlackHoleControls() {
+        // Create a control panel for adjusting black hole parameters
+        const controlPanel = document.createElement('div');
+        controlPanel.id = 'control-panel';
+        controlPanel.classList.add('hidden');
+        
+        // Control panel toggle button
+        const controlToggle = document.createElement('div');
+        controlToggle.id = 'control-toggle';
+        controlToggle.innerHTML = '<span>⚙️</span>';
+        controlToggle.setAttribute('aria-label', 'Toggle black hole controls');
+        controlToggle.setAttribute('role', 'button');
+        controlToggle.setAttribute('tabindex', '0');
+        
+        // Add controls to DOM
+        document.getElementById('container').appendChild(controlPanel);
+        document.getElementById('container').appendChild(controlToggle);
+        
+        // Default parameters
+        this.blackHoleParams = {
+            radius: this.config.blackHoleRadius,
+            intensity: 1.5,
+            rotationSpeed: 1.0,
+            accretionDiskSize: this.config.accretionDiskRadius,
+            accretionBrightness: 1.0,
+            lensStrength: 10.0
+        };
+        
+        // Create control panel content
+        controlPanel.innerHTML = `
+            <div class="control-header">
+                <h3>Black Hole Controls</h3>
+                <button id="close-controls" aria-label="Close controls">&times;</button>
+            </div>
+            <div class="control-content">
+                <div class="control-group">
+                    <label for="radius-control">Event Horizon Size</label>
+                    <input type="range" id="radius-control" min="5" max="15" step="0.5" value="${this.blackHoleParams.radius}">
+                    <span class="control-value" id="radius-value">${this.blackHoleParams.radius}</span>
+                </div>
+                
+                <div class="control-group">
+                    <label for="intensity-control">Gravitational Intensity</label>
+                    <input type="range" id="intensity-control" min="0.5" max="3" step="0.1" value="${this.blackHoleParams.intensity}">
+                    <span class="control-value" id="intensity-value">${this.blackHoleParams.intensity}</span>
+                </div>
+                
+                <div class="control-group">
+                    <label for="rotation-control">Rotation Speed</label>
+                    <input type="range" id="rotation-control" min="0" max="2" step="0.1" value="${this.blackHoleParams.rotationSpeed}">
+                    <span class="control-value" id="rotation-value">${this.blackHoleParams.rotationSpeed}</span>
+                </div>
+                
+                <div class="control-group">
+                    <label for="disk-size-control">Accretion Disk Size</label>
+                    <input type="range" id="disk-size-control" min="15" max="25" step="0.5" value="${this.blackHoleParams.accretionDiskSize}">
+                    <span class="control-value" id="disk-size-value">${this.blackHoleParams.accretionDiskSize}</span>
+                </div>
+                
+                <div class="control-group">
+                    <label for="brightness-control">Disk Brightness</label>
+                    <input type="range" id="brightness-control" min="0.5" max="1.5" step="0.1" value="${this.blackHoleParams.accretionBrightness}">
+                    <span class="control-value" id="brightness-value">${this.blackHoleParams.accretionBrightness}</span>
+                </div>
+                
+                <div class="control-group">
+                    <label for="lens-control">Lensing Strength</label>
+                    <input type="range" id="lens-control" min="5" max="20" step="0.5" value="${this.blackHoleParams.lensStrength}">
+                    <span class="control-value" id="lens-value">${this.blackHoleParams.lensStrength}</span>
+                </div>
+            </div>
+            <div class="control-footer">
+                <button id="reset-controls">Reset to Default</button>
+                <button id="random-controls">Random Configuration</button>
+            </div>
+        `;
+        
+        // Toggle control panel visibility
+        controlToggle.addEventListener('click', () => {
+            controlPanel.classList.toggle('hidden');
+            controlToggle.classList.toggle('active');
+            
+            // Play sound if audio is initialized
+            if (this.audioContext && this.audioContext.state === 'running') {
+                if (!controlPanel.classList.contains('hidden')) {
+                    this.createSectionOpenSound();
+                } else {
+                    this.createSectionCloseSound();
+                }
+            }
+        });
+        
+        // Close button functionality
+        document.getElementById('close-controls').addEventListener('click', () => {
+            controlPanel.classList.add('hidden');
+            controlToggle.classList.remove('active');
+            
+            // Play sound if audio is initialized
+            if (this.audioContext && this.audioContext.state === 'running') {
+                this.createSectionCloseSound();
+            }
+        });
+        
+        // Reset controls to default
+        document.getElementById('reset-controls').addEventListener('click', () => {
+            this.resetBlackHoleControls();
+            
+            // Play sound if audio is initialized
+            if (this.audioContext && this.audioContext.state === 'running') {
+                this.createDataInputSound();
+            }
+        });
+        
+        // Set random configuration
+        document.getElementById('random-controls').addEventListener('click', () => {
+            this.randomizeBlackHoleControls();
+            
+            // Play sound if audio is initialized
+            if (this.audioContext && this.audioContext.state === 'running') {
+                this.createBlackHoleEffectSound();
+            }
+        });
+        
+        // Add event listeners for all sliders
+        this.setupControlListeners();
+    },
+    
+    setupControlListeners() {
+        // Event horizon radius control
+        const radiusControl = document.getElementById('radius-control');
+        const radiusValue = document.getElementById('radius-value');
+        
+        radiusControl.addEventListener('input', () => {
+            const value = parseFloat(radiusControl.value);
+            radiusValue.textContent = value;
+            this.blackHoleParams.radius = value;
+            
+            // Update black hole
+            if (this.blackHole && this.blackHole.material.uniforms) {
+                this.blackHole.material.uniforms.radius.value = value;
+            }
+            
+            // Update accretion disk inner radius
+            if (this.accretionDisk && this.accretionDisk.material.uniforms) {
+                this.accretionDisk.material.uniforms.innerRadius.value = value + 1;
+            }
+            
+            // Update gravitational stars lensing
+            if (this.gravityStars && this.gravityStars.material.uniforms) {
+                this.gravityStars.material.uniforms.blackHoleRadius.value = value;
+            }
+            
+            this.playControlChangeSound();
+        });
+        
+        // Gravitational intensity control
+        const intensityControl = document.getElementById('intensity-control');
+        const intensityValue = document.getElementById('intensity-value');
+        
+        intensityControl.addEventListener('input', () => {
+            const value = parseFloat(intensityControl.value);
+            intensityValue.textContent = value;
+            this.blackHoleParams.intensity = value;
+            
+            // Update black hole
+            if (this.blackHole && this.blackHole.material.uniforms) {
+                this.blackHole.material.uniforms.intensity.value = value;
+            }
+            
+            this.playControlChangeSound();
+        });
+        
+        // Rotation speed control
+        const rotationControl = document.getElementById('rotation-control');
+        const rotationValue = document.getElementById('rotation-value');
+        
+        rotationControl.addEventListener('input', () => {
+            const value = parseFloat(rotationControl.value);
+            rotationValue.textContent = value;
+            this.blackHoleParams.rotationSpeed = value;
+            
+            this.playControlChangeSound();
+        });
+        
+        // Accretion disk size control
+        const diskSizeControl = document.getElementById('disk-size-control');
+        const diskSizeValue = document.getElementById('disk-size-value');
+        
+        diskSizeControl.addEventListener('input', () => {
+            const value = parseFloat(diskSizeControl.value);
+            diskSizeValue.textContent = value;
+            this.blackHoleParams.accretionDiskSize = value;
+            
+            // Update accretion disk
+            if (this.accretionDisk && this.accretionDisk.material.uniforms) {
+                this.accretionDisk.material.uniforms.outerRadius.value = value;
+            }
+            
+            this.playControlChangeSound();
+        });
+        
+        // Disk brightness control
+        const brightnessControl = document.getElementById('brightness-control');
+        const brightnessValue = document.getElementById('brightness-value');
+        
+        brightnessControl.addEventListener('input', () => {
+            const value = parseFloat(brightnessControl.value);
+            brightnessValue.textContent = value;
+            this.blackHoleParams.accretionBrightness = value;
+            
+            // Could update accretion disk material brightness here if we had a uniform for it
+            // For now we'll just use it to influence visual effects
+            
+            this.playControlChangeSound();
+        });
+        
+        // Lensing strength control
+        const lensControl = document.getElementById('lens-control');
+        const lensValue = document.getElementById('lens-value');
+        
+        lensControl.addEventListener('input', () => {
+            const value = parseFloat(lensControl.value);
+            lensValue.textContent = value;
+            this.blackHoleParams.lensStrength = value;
+            
+            // Update gravitational star lensing
+            if (this.gravityStars && this.gravityStars.material.uniforms) {
+                this.gravityStars.material.uniforms.lensStrength.value = value;
+            }
+            
+            this.playControlChangeSound();
+        });
+        
+        // Keyboard accessibility
+        document.getElementById('control-toggle').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                document.getElementById('control-panel').classList.toggle('hidden');
+                document.getElementById('control-toggle').classList.toggle('active');
+                
+                // Play sound if audio is initialized
+                if (this.audioContext && this.audioContext.state === 'running') {
+                    if (!document.getElementById('control-panel').classList.contains('hidden')) {
+                        this.createSectionOpenSound();
+                    } else {
+                        this.createSectionCloseSound();
+                    }
+                }
+            }
+        });
+    },
+    
+    resetBlackHoleControls() {
+        // Reset all controls to default values
+        this.blackHoleParams = {
+            radius: this.config.blackHoleRadius,
+            intensity: 1.5,
+            rotationSpeed: 1.0,
+            accretionDiskSize: this.config.accretionDiskRadius,
+            accretionBrightness: 1.0,
+            lensStrength: 10.0
+        };
+        
+        // Update UI sliders
+        document.getElementById('radius-control').value = this.blackHoleParams.radius;
+        document.getElementById('radius-value').textContent = this.blackHoleParams.radius;
+        
+        document.getElementById('intensity-control').value = this.blackHoleParams.intensity;
+        document.getElementById('intensity-value').textContent = this.blackHoleParams.intensity;
+        
+        document.getElementById('rotation-control').value = this.blackHoleParams.rotationSpeed;
+        document.getElementById('rotation-value').textContent = this.blackHoleParams.rotationSpeed;
+        
+        document.getElementById('disk-size-control').value = this.blackHoleParams.accretionDiskSize;
+        document.getElementById('disk-size-value').textContent = this.blackHoleParams.accretionDiskSize;
+        
+        document.getElementById('brightness-control').value = this.blackHoleParams.accretionBrightness;
+        document.getElementById('brightness-value').textContent = this.blackHoleParams.accretionBrightness;
+        
+        document.getElementById('lens-control').value = this.blackHoleParams.lensStrength;
+        document.getElementById('lens-value').textContent = this.blackHoleParams.lensStrength;
+        
+        // Update visual elements
+        this.updateBlackHoleFromControls();
+    },
+    
+    randomizeBlackHoleControls() {
+        // Set random values for all parameters
+        this.blackHoleParams = {
+            radius: Math.random() * 10 + 5, // 5-15
+            intensity: Math.random() * 2.5 + 0.5, // 0.5-3
+            rotationSpeed: Math.random() * 2, // 0-2
+            accretionDiskSize: Math.random() * 10 + 15, // 15-25
+            accretionBrightness: Math.random() + 0.5, // 0.5-1.5
+            lensStrength: Math.random() * 15 + 5 // 5-20
+        };
+        
+        // Update UI sliders
+        document.getElementById('radius-control').value = this.blackHoleParams.radius;
+        document.getElementById('radius-value').textContent = this.blackHoleParams.radius.toFixed(1);
+        
+        document.getElementById('intensity-control').value = this.blackHoleParams.intensity;
+        document.getElementById('intensity-value').textContent = this.blackHoleParams.intensity.toFixed(1);
+        
+        document.getElementById('rotation-control').value = this.blackHoleParams.rotationSpeed;
+        document.getElementById('rotation-value').textContent = this.blackHoleParams.rotationSpeed.toFixed(1);
+        
+        document.getElementById('disk-size-control').value = this.blackHoleParams.accretionDiskSize;
+        document.getElementById('disk-size-value').textContent = this.blackHoleParams.accretionDiskSize.toFixed(1);
+        
+        document.getElementById('brightness-control').value = this.blackHoleParams.accretionBrightness;
+        document.getElementById('brightness-value').textContent = this.blackHoleParams.accretionBrightness.toFixed(1);
+        
+        document.getElementById('lens-control').value = this.blackHoleParams.lensStrength;
+        document.getElementById('lens-value').textContent = this.blackHoleParams.lensStrength.toFixed(1);
+        
+        // Update visual elements
+        this.updateBlackHoleFromControls();
+    },
+    
+    updateBlackHoleFromControls() {
+        // Update black hole parameters based on controls
+        if (this.blackHole && this.blackHole.material.uniforms) {
+            this.blackHole.material.uniforms.radius.value = this.blackHoleParams.radius;
+            this.blackHole.material.uniforms.intensity.value = this.blackHoleParams.intensity;
+        }
+        
+        // Update accretion disk
+        if (this.accretionDisk && this.accretionDisk.material.uniforms) {
+            this.accretionDisk.material.uniforms.innerRadius.value = this.blackHoleParams.radius + 1;
+            this.accretionDisk.material.uniforms.outerRadius.value = this.blackHoleParams.accretionDiskSize;
+        }
+        
+        // Update gravitational lensing
+        if (this.gravityStars && this.gravityStars.material.uniforms) {
+            this.gravityStars.material.uniforms.blackHoleRadius.value = this.blackHoleParams.radius;
+            this.gravityStars.material.uniforms.lensStrength.value = this.blackHoleParams.lensStrength;
+        }
+    },
+    
+    playControlChangeSound() {
+        // Play a subtle sound when controls are changed
+        if (this.audioContext && this.audioContext.state === 'running') {
+            const oscillator = this.audioContext.createOscillator();
+            oscillator.type = 'sine';
+            oscillator.frequency.value = 440 + Math.random() * 440;
+            
+            const gain = this.audioContext.createGain();
+            gain.gain.value = 0;
+            
+            oscillator.connect(gain);
+            gain.connect(this.masterGain);
+            
+            const now = this.audioContext.currentTime;
+            oscillator.start(now);
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(0.03, now + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+            
+            // Clean up
+            setTimeout(() => {
+                oscillator.stop();
+                oscillator.disconnect();
+                gain.disconnect();
+            }, 200);
+        }
+    },
+    
+    initTutorialSystem() {
+        // Create tooltip container
+        this.tooltipContainer = document.createElement('div');
+        this.tooltipContainer.id = 'tooltip-container';
+        document.getElementById('container').appendChild(this.tooltipContainer);
+        
+        // Prepare tutorial steps
+        this.tutorialSteps = [
+            {
+                title: "Welcome to the Cosmic Singularity",
+                content: "This interactive black hole simulation demonstrates actual astrophysics principles. Explore the accretion disk, event horizon, and gravitational effects.",
+                position: "center",
+                highlight: "blackhole",
+                showNext: true
+            },
+            {
+                title: "Event Horizon",
+                content: "The event horizon is the boundary beyond which nothing can escape the gravitational pull of the black hole - not even light. It's the point of no return.",
+                position: "top-right",
+                highlight: "event-horizon",
+                showNext: true
+            },
+            {
+                title: "Accretion Disk",
+                content: "This swirling disk of superheated matter forms as gas and dust are drawn toward the black hole. The intense friction causes it to glow brightly.",
+                position: "bottom-left",
+                highlight: "accretion-disk",
+                showNext: true
+            },
+            {
+                title: "Gravitational Lensing",
+                content: "Notice how light bends around the black hole? This is gravitational lensing - a prediction of Einstein's theory of General Relativity where mass curves spacetime.",
+                position: "top-left",
+                highlight: "lensing",
+                showNext: true
+            },
+            {
+                title: "Interactive Input",
+                content: "Try typing in the input field to feed data into the black hole. Watch as your text is transformed into matter and consumed by the singularity.",
+                position: "bottom",
+                highlight: "input",
+                showNext: true
+            },
+            {
+                title: "Navigation Orbs",
+                content: "These orbs represent different sections of the site. Click them to explore more about me and my work.",
+                position: "right",
+                highlight: "orbs",
+                showNext: true
+            },
+            {
+                title: "Cosmic Audio",
+                content: "The simulation includes spatial audio inspired by actual black hole recordings from NASA. Toggle sound with the button in the bottom left.",
+                position: "bottom-left",
+                highlight: "audio",
+                showNext: false
+            }
+        ];
+        
+        // Track current tutorial step
+        this.currentTutorialStep = 0;
+        
+        // Create info button for showing physics info anytime
+        this.createInfoButton();
+    },
+    
+    createInfoButton() {
+        // Create an info button for showing physics explanations
+        const infoButton = document.createElement('div');
+        infoButton.id = 'info-button';
+        infoButton.innerHTML = '?';
+        infoButton.setAttribute('aria-label', 'Black hole information');
+        infoButton.setAttribute('role', 'button');
+        infoButton.setAttribute('tabindex', '0');
+        document.getElementById('container').appendChild(infoButton);
+        
+        // Create info panel (hidden initially)
+        const infoPanel = document.createElement('div');
+        infoPanel.id = 'info-panel';
+        infoPanel.classList.add('hidden');
+        document.getElementById('container').appendChild(infoPanel);
+        
+        // Physics facts and explanations
+        const physicsInfo = [
+            {
+                title: "Event Horizon",
+                content: "The event horizon is the boundary around a black hole beyond which no light or matter can escape. Its radius (Schwarzschild radius) is proportional to the black hole's mass."
+            },
+            {
+                title: "Accretion Disk",
+                content: "As matter falls toward a black hole, it forms a rotating disk of superheated gas. Friction causes the gas to heat up to millions of degrees, emitting radiation across the electromagnetic spectrum."
+            },
+            {
+                title: "Gravitational Lensing",
+                content: "Black holes distort spacetime so severely that they bend the path of light passing nearby. This creates a lens-like effect where objects behind the black hole may appear distorted or even visible as multiple images."
+            },
+            {
+                title: "Hawking Radiation",
+                content: "Theoretical physicist Stephen Hawking predicted that black holes slowly emit radiation due to quantum effects near the event horizon, causing them to gradually lose mass and eventually evaporate."
+            },
+            {
+                title: "Spaghettification",
+                content: "Objects falling into a black hole experience extreme tidal forces. The difference in gravitational pull between the near and far side of an object causes it to stretch out into a long, thin shape - like spaghetti."
+            },
+            {
+                title: "Time Dilation",
+                content: "Near a black hole, time appears to slow down from an outside observer's perspective - a phenomenon called gravitational time dilation. An object falling into a black hole would appear to freeze at the event horizon."
+            },
+            {
+                title: "Black Hole Audio",
+                content: "NASA has converted the pressure waves from a supermassive black hole in the Perseus galaxy cluster into sound. The actual pitch is 57 octaves below middle C, so it's been scaled up for human hearing."
+            }
+        ];
+        
+        // Generate info panel content
+        let infoPanelHTML = `
+            <div class="info-panel-header">
+                <h2>Black Hole Physics</h2>
+                <button id="close-info-panel" aria-label="Close information panel">&times;</button>
+            </div>
+            <div class="info-panel-content">
+        `;
+        
+        physicsInfo.forEach(info => {
+            infoPanelHTML += `
+                <div class="info-item">
+                    <h3>${info.title}</h3>
+                    <p>${info.content}</p>
+                </div>
+            `;
+        });
+        
+        infoPanelHTML += `
+            </div>
+            <div class="info-panel-footer">
+                <a href="https://www.nasa.gov/black-holes/" target="_blank" class="info-link">Learn more from NASA</a>
+            </div>
+        `;
+        
+        infoPanel.innerHTML = infoPanelHTML;
+        
+        // Add event listeners
+        infoButton.addEventListener('click', () => {
+            infoPanel.classList.remove('hidden');
+            
+            // Play sound effect if available
+            if (this.audioContext && this.audioContext.state === 'running' && this.createSectionOpenSound) {
+                this.createSectionOpenSound();
+            }
+        });
+        
+        // Close button functionality
+        const closeButton = document.getElementById('close-info-panel');
+        closeButton.addEventListener('click', () => {
+            infoPanel.classList.add('hidden');
+            
+            // Play sound effect if available
+            if (this.audioContext && this.audioContext.state === 'running' && this.createSectionCloseSound) {
+                this.createSectionCloseSound();
+            }
+        });
+        
+        // Keyboard accessibility
+        infoButton.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                infoPanel.classList.remove('hidden');
+                
+                // Play sound effect if available
+                if (this.audioContext && this.audioContext.state === 'running' && this.createSectionOpenSound) {
+                    this.createSectionOpenSound();
+                }
+            }
+        });
+        
+        closeButton.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                infoPanel.classList.add('hidden');
+                
+                // Play sound effect if available
+                if (this.audioContext && this.audioContext.state === 'running' && this.createSectionCloseSound) {
+                    this.createSectionCloseSound();
+                }
+            }
+        });
+    },
+    
+    showTutorialStep(stepIndex) {
+        if (stepIndex >= this.tutorialSteps.length) return;
+        
+        const step = this.tutorialSteps[stepIndex];
+        this.currentTutorialStep = stepIndex;
+        
+        // Clear any existing tooltip
+        this.tooltipContainer.innerHTML = '';
+        
+        // Create tooltip element
+        const tooltip = document.createElement('div');
+        tooltip.className = 'tooltip';
+        tooltip.classList.add(`position-${step.position}`);
+        
+        // Add title and content
+        tooltip.innerHTML = `
+            <div class="tooltip-header">
+                <h3>${step.title}</h3>
+                <button class="tooltip-close" aria-label="Close tutorial">&times;</button>
+            </div>
+            <div class="tooltip-content">
+                <p>${step.content}</p>
+            </div>
+            <div class="tooltip-footer">
+                ${stepIndex > 0 ? '<button class="tooltip-prev">Previous</button>' : ''}
+                ${step.showNext ? '<button class="tooltip-next">Next</button>' : '<button class="tooltip-done">Got it</button>'}
+            </div>
+        `;
+        
+        // Add to container
+        this.tooltipContainer.appendChild(tooltip);
+        
+        // Add highlight element if specified
+        if (step.highlight) {
+            this.showHighlight(step.highlight);
+        }
+        
+        // Add event listeners
+        const closeBtn = tooltip.querySelector('.tooltip-close');
+        closeBtn.addEventListener('click', () => {
+            this.tooltipContainer.innerHTML = '';
+            this.removeHighlight();
+            localStorage.setItem('tutorialSeen', 'true');
+            
+            // Play sound effect if available
+            if (this.audioContext && this.audioContext.state === 'running' && this.createDataInputSound) {
+                this.createDataInputSound();
+            }
+        });
+        
+        const nextBtn = tooltip.querySelector('.tooltip-next');
+        if (nextBtn) {
+            nextBtn.addEventListener('click', () => {
+                this.removeHighlight();
+                this.showTutorialStep(stepIndex + 1);
+                
+                // Play sound effect if available
+                if (this.audioContext && this.audioContext.state === 'running' && this.createOrbHighlightSound) {
+                    this.createOrbHighlightSound();
+                }
+            });
+        }
+        
+        const prevBtn = tooltip.querySelector('.tooltip-prev');
+        if (prevBtn) {
+            prevBtn.addEventListener('click', () => {
+                this.removeHighlight();
+                this.showTutorialStep(stepIndex - 1);
+                
+                // Play sound effect if available
+                if (this.audioContext && this.audioContext.state === 'running' && this.createOrbHighlightSound) {
+                    this.createOrbHighlightSound();
+                }
+            });
+        }
+        
+        const doneBtn = tooltip.querySelector('.tooltip-done');
+        if (doneBtn) {
+            doneBtn.addEventListener('click', () => {
+                this.tooltipContainer.innerHTML = '';
+                this.removeHighlight();
+                localStorage.setItem('tutorialSeen', 'true');
+                
+                // Play sound effect if available
+                if (this.audioContext && this.audioContext.state === 'running' && this.createSectionCloseSound) {
+                    this.createSectionCloseSound();
+                }
+            });
+        }
+        
+        // Add audio effect for tooltip appearance
+        if (this.audioContext && this.audioContext.state === 'running') {
+            // Simple high tone for tooltip appearance
+            const oscillator = this.audioContext.createOscillator();
+            oscillator.type = 'sine';
+            oscillator.frequency.value = 880;
+            
+            const gain = this.audioContext.createGain();
+            gain.gain.value = 0;
+            
+            oscillator.connect(gain);
+            gain.connect(this.masterGain);
+            
+            const now = this.audioContext.currentTime;
+            oscillator.start(now);
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(0.05, now + 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+            
+            // Clean up
+            setTimeout(() => {
+                oscillator.stop();
+                oscillator.disconnect();
+                gain.disconnect();
+            }, 600);
+        }
+    },
+    
+    showHighlight(highlightType) {
+        // Remove any existing highlight
+        this.removeHighlight();
+        
+        // Create highlight element
+        const highlight = document.createElement('div');
+        highlight.id = 'highlight-element';
+        
+        // Position and style based on type
+        switch (highlightType) {
+            case 'blackhole':
+                // Center screen highlight
+                highlight.classList.add('highlight-blackhole');
+                break;
+                
+            case 'event-horizon':
+                // Event horizon highlight
+                highlight.classList.add('highlight-event-horizon');
+                break;
+                
+            case 'accretion-disk':
+                // Accretion disk highlight
+                highlight.classList.add('highlight-accretion');
+                break;
+                
+            case 'lensing':
+                // Gravitational lensing highlight
+                highlight.classList.add('highlight-lensing');
+                break;
+                
+            case 'input':
+                // Input field highlight
+                highlight.classList.add('highlight-input');
+                const inputElement = document.getElementById('data-input');
+                if (inputElement) {
+                    const rect = inputElement.getBoundingClientRect();
+                    highlight.style.top = `${rect.top - 10}px`;
+                    highlight.style.left = `${rect.left - 10}px`;
+                    highlight.style.width = `${rect.width + 20}px`;
+                    highlight.style.height = `${rect.height + 20}px`;
+                }
+                break;
+                
+            case 'orbs':
+                // Orbs highlight
+                highlight.classList.add('highlight-orbs');
+                const orbsElement = document.getElementById('orbs');
+                if (orbsElement) {
+                    const rect = orbsElement.getBoundingClientRect();
+                    highlight.style.top = `${rect.top - 10}px`;
+                    highlight.style.left = `${rect.left - 10}px`;
+                    highlight.style.width = `${rect.width + 20}px`;
+                    highlight.style.height = `${rect.height + 20}px`;
+                    highlight.style.borderRadius = '50%';
+                }
+                break;
+                
+            case 'audio':
+                // Audio button highlight
+                highlight.classList.add('highlight-audio');
+                const audioElement = document.getElementById('audio-toggle');
+                if (audioElement) {
+                    const rect = audioElement.getBoundingClientRect();
+                    highlight.style.top = `${rect.top - 10}px`;
+                    highlight.style.left = `${rect.left - 10}px`;
+                    highlight.style.width = `${rect.width + 20}px`;
+                    highlight.style.height = `${rect.height + 20}px`;
+                    highlight.style.borderRadius = '50%';
+                }
+                break;
+        }
+        
+        // Add to document
+        document.body.appendChild(highlight);
+    },
+    
+    removeHighlight() {
+        const highlight = document.getElementById('highlight-element');
+        if (highlight) {
+            highlight.remove();
+        }
     },
     
     // Audio initialization and effects
@@ -2399,14 +3172,19 @@ const app = {
         // Update delta time and elapsed time
         const elapsedTime = this.clock.getElapsedTime();
         
+        // Apply custom rotation speed
+        const rotationSpeed = this.blackHoleParams ? this.blackHoleParams.rotationSpeed : 1.0;
+        
         // Update black hole and effects
         if (this.blackHole && this.blackHole.material.uniforms) {
             this.blackHole.material.uniforms.time.value = elapsedTime;
+            this.blackHole.rotation.y = elapsedTime * 0.1 * rotationSpeed;
         }
         
         // Update accretion disk
         if (this.accretionDisk && this.accretionDisk.material.uniforms) {
             this.accretionDisk.material.uniforms.time.value = elapsedTime;
+            this.accretionDisk.rotation.z = elapsedTime * 0.2 * rotationSpeed;
         }
         
         // Update event horizon particles
@@ -2421,6 +3199,21 @@ const app = {
                     line.material.uniforms.time.value = elapsedTime;
                 }
             });
+        }
+        
+        // Update cosmic background
+        if (this.distantStars && this.distantStars.material.uniforms) {
+            this.distantStars.material.uniforms.time.value = elapsedTime;
+            // Rotate distant stars very slowly
+            this.distantStars.rotation.y = elapsedTime * 0.01;
+        }
+        
+        if (this.gravityStars && this.gravityStars.material.uniforms) {
+            this.gravityStars.material.uniforms.time.value = elapsedTime;
+        }
+        
+        if (this.nebula && this.nebula.material.uniforms) {
+            this.nebula.material.uniforms.time.value = elapsedTime;
         }
         
         // Update particles
@@ -2636,6 +3429,438 @@ const app = {
         const isDarkMode = !document.body.classList.contains('light-mode');
         const style = getComputedStyle(document.documentElement);
         return style.getPropertyValue(`--${colorName}`).trim();
+    },
+    
+    createCosmicBackground() {
+        // Create a starfield with gravitational lensing effects
+        
+        // 1. Create distant stars (fixed background)
+        this.createDistantStars();
+        
+        // 2. Create closer stars that will be affected by gravitational lensing
+        this.createGravitationalStars();
+        
+        // 3. Add some nebula-like volumetric clouds in the background
+        this.createNebulaEffect();
+    },
+    
+    createDistantStars() {
+        // Create thousands of distant stars as a simple background
+        const starCount = this.config.devicePerformance === 'low' ? 2000 : 5000;
+        const starGeometry = new THREE.BufferGeometry();
+        const starPositions = new Float32Array(starCount * 3);
+        const starColors = new Float32Array(starCount * 3);
+        const starSizes = new Float32Array(starCount);
+        
+        // Generate stars in a spherical distribution very far away
+        for (let i = 0; i < starCount; i++) {
+            // Use spherical coordinates for even distribution
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(2 * Math.random() - 1);
+            const radius = 300 + Math.random() * 700; // Far away background
+            
+            // Convert to Cartesian coordinates
+            const x = radius * Math.sin(phi) * Math.cos(theta);
+            const y = radius * Math.sin(phi) * Math.sin(theta);
+            const z = radius * Math.cos(phi);
+            
+            starPositions[i * 3] = x;
+            starPositions[i * 3 + 1] = y;
+            starPositions[i * 3 + 2] = z;
+            
+            // Star colors - mostly white/blue but with some variation
+            const colorType = Math.random();
+            if (colorType < 0.8) {
+                // White/blue stars (more common)
+                const blueShift = Math.random() * 0.2;
+                starColors[i * 3] = 0.8 + Math.random() * 0.2; // R
+                starColors[i * 3 + 1] = 0.8 + Math.random() * 0.2; // G
+                starColors[i * 3 + 2] = 0.9 + blueShift; // B
+            } else if (colorType < 0.95) {
+                // Yellow/orange stars
+                starColors[i * 3] = 0.9 + Math.random() * 0.1; // R
+                starColors[i * 3 + 1] = 0.7 + Math.random() * 0.3; // G
+                starColors[i * 3 + 2] = 0.3 + Math.random() * 0.3; // B
+            } else {
+                // Red stars (rare)
+                starColors[i * 3] = 0.9 + Math.random() * 0.1; // R
+                starColors[i * 3 + 1] = 0.2 + Math.random() * 0.2; // G
+                starColors[i * 3 + 2] = 0.2 + Math.random() * 0.2; // B
+            }
+            
+            // Random sizes with some variation
+            starSizes[i] = Math.random() * 1.5 + 0.5;
+        }
+        
+        starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+        starGeometry.setAttribute('color', new THREE.BufferAttribute(starColors, 3));
+        starGeometry.setAttribute('size', new THREE.BufferAttribute(starSizes, 1));
+        
+        // Create a shader material for the stars with twinkle effect
+        const starMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                time: { value: 0 },
+                pixelRatio: { value: Math.min(window.devicePixelRatio, 2) }
+            },
+            vertexShader: `
+                attribute float size;
+                attribute vec3 color;
+                uniform float time;
+                uniform float pixelRatio;
+                varying vec3 vColor;
+                
+                void main() {
+                    vColor = color;
+                    
+                    // Twinkle effect (subtle)
+                    float twinkle = sin(time + position.x * 100.0) * 0.2 + 0.8;
+                    
+                    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                    
+                    gl_PointSize = size * pixelRatio * (200.0 / -mvPosition.z) * twinkle;
+                    gl_Position = projectionMatrix * mvPosition;
+                }
+            `,
+            fragmentShader: `
+                varying vec3 vColor;
+                
+                void main() {
+                    // Create a circular star
+                    float dist = length(gl_PointCoord - vec2(0.5));
+                    if (dist > 0.5) discard;
+                    
+                    // Glow effect at the edges
+                    float glow = 0.5 - dist;
+                    
+                    gl_FragColor = vec4(vColor, 1.0);
+                }
+            `,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            transparent: true
+        });
+        
+        // Create the star field and add to scene
+        this.distantStars = new THREE.Points(starGeometry, starMaterial);
+        this.scene.add(this.distantStars);
+    },
+    
+    createGravitationalStars() {
+        // Create stars that will be affected by gravitational lensing
+        const starCount = this.config.devicePerformance === 'low' ? 100 : 300;
+        const starGeometry = new THREE.BufferGeometry();
+        const starPositions = new Float32Array(starCount * 3);
+        const starColors = new Float32Array(starCount * 3);
+        const starSizes = new Float32Array(starCount);
+        const starOriginalPositions = new Float32Array(starCount * 3); // Store original positions for physics
+        
+        // Generate stars that are closer and will be affected by gravity
+        for (let i = 0; i < starCount; i++) {
+            // Place stars in a disk formation (like a galaxy) around the black hole
+            const radius = 30 + Math.random() * 50;
+            const angle = Math.random() * Math.PI * 2;
+            
+            // Add some height variation
+            const height = (Math.random() - 0.5) * 30;
+            
+            const x = Math.cos(angle) * radius;
+            const y = height;
+            const z = Math.sin(angle) * radius;
+            
+            starPositions[i * 3] = x;
+            starPositions[i * 3 + 1] = y;
+            starPositions[i * 3 + 2] = z;
+            
+            // Store original positions for lensing effect calculation
+            starOriginalPositions[i * 3] = x;
+            starOriginalPositions[i * 3 + 1] = y;
+            starOriginalPositions[i * 3 + 2] = z;
+            
+            // Bright star colors
+            const intensity = 0.8 + Math.random() * 0.2;
+            
+            // Similar color distribution as distant stars but brighter
+            const colorType = Math.random();
+            if (colorType < 0.7) {
+                // White/blue stars
+                starColors[i * 3] = intensity;
+                starColors[i * 3 + 1] = intensity;
+                starColors[i * 3 + 2] = intensity;
+            } else if (colorType < 0.9) {
+                // Yellow/orange stars
+                starColors[i * 3] = intensity;
+                starColors[i * 3 + 1] = 0.7 * intensity;
+                starColors[i * 3 + 2] = 0.5 * intensity;
+            } else {
+                // Red stars
+                starColors[i * 3] = intensity;
+                starColors[i * 3 + 1] = 0.3 * intensity;
+                starColors[i * 3 + 2] = 0.3 * intensity;
+            }
+            
+            // Larger sizes for these closer stars
+            starSizes[i] = Math.random() * 2 + 1.5;
+        }
+        
+        starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+        starGeometry.setAttribute('color', new THREE.BufferAttribute(starColors, 3));
+        starGeometry.setAttribute('size', new THREE.BufferAttribute(starSizes, 1));
+        
+        // Create a custom material for gravitational lensing effect
+        const lensStarMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                time: { value: 0 },
+                pixelRatio: { value: Math.min(window.devicePixelRatio, 2) },
+                blackHolePosition: { value: new THREE.Vector3(0, 0, 0) },
+                blackHoleRadius: { value: this.config.blackHoleRadius },
+                lensStrength: { value: 10.0 }
+            },
+            vertexShader: `
+                attribute float size;
+                attribute vec3 color;
+                uniform float time;
+                uniform float pixelRatio;
+                uniform vec3 blackHolePosition;
+                uniform float blackHoleRadius;
+                uniform float lensStrength;
+                
+                varying vec3 vColor;
+                
+                void main() {
+                    vColor = color;
+                    
+                    // Calculate distance to black hole
+                    vec3 dirToBlackHole = blackHolePosition - position;
+                    float distToBlackHole = length(dirToBlackHole);
+                    
+                    // Normalize direction
+                    vec3 dirNorm = normalize(dirToBlackHole);
+                    
+                    // Calculate gravitational lensing effect
+                    // Schwarzschild radius approximation
+                    float schwarzschildRadius = blackHoleRadius * 2.0;
+                    
+                    // Lensing strength decreases with distance (inverse square law approximation)
+                    float lensEffect = schwarzschildRadius * lensStrength / max(distToBlackHole * distToBlackHole, 100.0);
+                    
+                    // Apply gravitational lensing displacement
+                    // Stars appear to move away from their true position when light passes near the black hole
+                    // This is simplified but gives a nice visual approximation
+                    vec3 displacedPosition = position;
+                    
+                    // Only displace if not too close to black hole (would be consumed)
+                    if (distToBlackHole > blackHoleRadius * 3.0) {
+                        // Perpendicular displacement (light bends around the black hole)
+                        vec3 perpDir = normalize(cross(dirNorm, vec3(0.0, 1.0, 0.0)));
+                        displacedPosition -= perpDir * lensEffect * 0.5;
+                        
+                        // Slight pull toward black hole for visual effect
+                        displacedPosition += dirNorm * lensEffect * 0.1;
+                    }
+                    
+                    // Add some orbital motion
+                    float orbitSpeed = 0.1 / max(pow(distToBlackHole / 10.0, 1.5), 1.0);
+                    float angle = time * orbitSpeed;
+                    mat3 rotationMatrix = mat3(
+                        cos(angle), 0.0, sin(angle),
+                        0.0, 1.0, 0.0,
+                        -sin(angle), 0.0, cos(angle)
+                    );
+                    
+                    // Apply rotation if not too close to black hole
+                    if (distToBlackHole > blackHoleRadius * 4.0) {
+                        displacedPosition = rotationMatrix * displacedPosition;
+                    }
+                    
+                    // Twinkle effect
+                    float twinkle = sin(time * 2.0 + position.x * 100.0) * 0.3 + 0.7;
+                    
+                    vec4 mvPosition = modelViewMatrix * vec4(displacedPosition, 1.0);
+                    
+                    gl_PointSize = size * pixelRatio * (800.0 / -mvPosition.z) * twinkle;
+                    gl_Position = projectionMatrix * mvPosition;
+                }
+            `,
+            fragmentShader: `
+                varying vec3 vColor;
+                
+                void main() {
+                    // Create a circular star with smooth edges
+                    float dist = length(gl_PointCoord - vec2(0.5));
+                    if (dist > 0.5) discard;
+                    
+                    // Smooth falloff at edges
+                    float alpha = 1.0 - smoothstep(0.2, 0.5, dist);
+                    
+                    gl_FragColor = vec4(vColor, alpha);
+                }
+            `,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            transparent: true
+        });
+        
+        // Create the gravitational stars and add to scene
+        this.gravityStars = new THREE.Points(starGeometry, lensStarMaterial);
+        this.scene.add(this.gravityStars);
+        
+        // Store original positions for reference
+        this.gravityStarsOriginalPositions = starOriginalPositions;
+    },
+    
+    createNebulaEffect() {
+        // Create some nebula-like volumetric clouds in the background
+        // This will use a custom shader to create a nebula effect
+        
+        // Create a large sphere for the nebula
+        const nebulaSize = 400;
+        const nebulaGeometry = new THREE.SphereGeometry(nebulaSize, 32, 32);
+        
+        // Inside-out rendering so we see the inside of the sphere
+        nebulaGeometry.scale(-1, 1, 1);
+        
+        // Custom shader for the nebula effect
+        const nebulaMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                time: { value: 0 },
+                nebulaColor1: { value: new THREE.Color(this.getThemeColor('primary')) },
+                nebulaColor2: { value: new THREE.Color(this.getThemeColor('secondary')) }
+            },
+            vertexShader: `
+                varying vec3 vPosition;
+                varying vec2 vUv;
+                
+                void main() {
+                    vPosition = position;
+                    vUv = uv;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform float time;
+                uniform vec3 nebulaColor1;
+                uniform vec3 nebulaColor2;
+                
+                varying vec3 vPosition;
+                varying vec2 vUv;
+                
+                // Simplex noise functions from https://github.com/ashima/webgl-noise
+                vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+                vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+                vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
+                vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
+                
+                float snoise(vec3 v) {
+                    const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+                    const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+                    
+                    // First corner
+                    vec3 i  = floor(v + dot(v, C.yyy));
+                    vec3 x0 = v - i + dot(i, C.xxx);
+                    
+                    // Other corners
+                    vec3 g = step(x0.yzx, x0.xyz);
+                    vec3 l = 1.0 - g;
+                    vec3 i1 = min(g.xyz, l.zxy);
+                    vec3 i2 = max(g.xyz, l.zxy);
+                    
+                    // x0 = x0 - 0.0 + 0.0 * C.xxx;
+                    // x1 = x0 - i1  + 1.0 * C.xxx;
+                    // x2 = x0 - i2  + 2.0 * C.xxx;
+                    // x3 = x0 - 1.0 + 3.0 * C.xxx;
+                    vec3 x1 = x0 - i1 + C.xxx;
+                    vec3 x2 = x0 - i2 + C.yyy; // 2.0*C.x = 1/3 = C.y
+                    vec3 x3 = x0 - D.yyy;      // -1.0+3.0*C.x = -0.5 = -D.y
+                    
+                    // Permutations
+                    i = mod289(i);
+                    vec4 p = permute(permute(permute(
+                             i.z + vec4(0.0, i1.z, i2.z, 1.0))
+                           + i.y + vec4(0.0, i1.y, i2.y, 1.0))
+                           + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+                           
+                    // Gradients: 7x7 points over a square, mapped onto an octahedron.
+                    // The ring size 17*17 = 289 is close to a multiple of 49 (49*6 = 294)
+                    float n_ = 0.142857142857; // 1.0/7.0
+                    vec3 ns = n_ * D.wyz - D.xzx;
+                    
+                    vec4 j = p - 49.0 * floor(p * ns.z * ns.z);  //  mod(p,7*7)
+                    
+                    vec4 x_ = floor(j * ns.z);
+                    vec4 y_ = floor(j - 7.0 * x_);    // mod(j,N)
+                    
+                    vec4 x = x_ *ns.x + ns.yyyy;
+                    vec4 y = y_ *ns.x + ns.yyyy;
+                    vec4 h = 1.0 - abs(x) - abs(y);
+                    
+                    vec4 b0 = vec4(x.xy, y.xy);
+                    vec4 b1 = vec4(x.zw, y.zw);
+                    
+                    // vec4 s0 = vec4(lessThan(b0,0.0))*2.0 - 1.0;
+                    // vec4 s1 = vec4(lessThan(b1,0.0))*2.0 - 1.0;
+                    vec4 s0 = floor(b0)*2.0 + 1.0;
+                    vec4 s1 = floor(b1)*2.0 + 1.0;
+                    vec4 sh = -step(h, vec4(0.0));
+                    
+                    vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
+                    vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
+                    
+                    vec3 p0 = vec3(a0.xy,h.x);
+                    vec3 p1 = vec3(a0.zw,h.y);
+                    vec3 p2 = vec3(a1.xy,h.z);
+                    vec3 p3 = vec3(a1.zw,h.w);
+                    
+                    // Normalise gradients
+                    vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
+                    p0 *= norm.x;
+                    p1 *= norm.y;
+                    p2 *= norm.z;
+                    p3 *= norm.w;
+                    
+                    // Mix final noise value
+                    vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+                    m = m * m;
+                    return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
+                }
+                
+                void main() {
+                    // Create layered noise for nebula effect
+                    float n1 = snoise(vPosition * 0.01 + vec3(time * 0.01, 0.0, 0.0));
+                    float n2 = snoise(vPosition * 0.02 - vec3(0.0, time * 0.015, 0.0));
+                    float n3 = snoise(vPosition * 0.005 + vec3(time * 0.02, time * 0.01, 0.0));
+                    
+                    // Combine noise layers
+                    float nebulaNoise = n1 * 0.5 + n2 * 0.3 + n3 * 0.2;
+                    
+                    // Add some contrast and clamp
+                    nebulaNoise = max(0.0, nebulaNoise);
+                    
+                    // Use distance from center to fade out the nebula
+                    float centerDist = length(vPosition) / 400.0;
+                    float fadeOut = smoothstep(0.0, 1.0, centerDist);
+                    
+                    // Mix colors based on noise
+                    vec3 nebulaColor = mix(nebulaColor1, nebulaColor2, n3 * 0.5 + 0.5);
+                    
+                    // Apply noise to create nebula pattern
+                    // Higher density toward the center
+                    float density = nebulaNoise * (1.0 - fadeOut);
+                    
+                    // Make it very transparent
+                    float alpha = density * 0.2;
+                    
+                    gl_FragColor = vec4(nebulaColor, alpha);
+                }
+            `,
+            transparent: true,
+            depthWrite: false,
+            side: THREE.BackSide,
+            blending: THREE.AdditiveBlending
+        });
+        
+        // Create the nebula and add to scene
+        this.nebula = new THREE.Mesh(nebulaGeometry, nebulaMaterial);
+        this.scene.add(this.nebula);
     }
 };
 
