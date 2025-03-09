@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Sitemap: https://micahoates.com/sitemap.xml
+
+# Disallow heavy resources
+Disallow: /node_modules/ 

@@ -6,6 +6,14 @@
     <title>Micah Oates | Developer & Digital Explorer</title>
     <meta name="description" content="Welcome to Micah Oates' digital singularity - a portal to my work, thoughts, and explorations in web development, interactive design, and creative coding.">
     
+    <!-- Performance Optimizations -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preload" href="css/styles.css" as="style">
+    <link rel="preload" href="js/main.js" as="script">
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/three@0.174.0/build/three.min.js" as="script">
+    
     <!-- SEO Meta Tags -->
     <meta name="keywords" content="Micah Oates, web developer, creative coder, interactive design, portfolio, WebGL, Three.js">
     <meta name="author" content="Micah Oates">
@@ -35,15 +43,15 @@
     <div id="container">
         <canvas id="scene"></canvas>
         <div id="ui">
-            <input type="text" id="data-input" placeholder="Feed the Singularity...">
-            <div id="orbs">
-                <a href="#about" class="orb" data-label="About">About</a>
-                <a href="#contact" class="orb" data-label="Contact">Contact</a>
-                <a href="#projects" class="orb" data-label="Projects">Projects</a>
-                <a href="#blog" class="orb" data-label="Blog">Blog</a>
+            <input type="text" id="data-input" placeholder="Feed the Singularity..." aria-label="Interactive input field">
+            <div id="orbs" role="navigation" aria-label="Main navigation">
+                <a href="#about" class="orb" data-label="About" aria-label="About section">About</a>
+                <a href="#contact" class="orb" data-label="Contact" aria-label="Contact section">Contact</a>
+                <a href="#projects" class="orb" data-label="Projects" aria-label="Projects section">Projects</a>
+                <a href="#blog" class="orb" data-label="Blog" aria-label="Blog section">Blog</a>
             </div>
         </div>
-        <div id="theme-toggle" title="Toggle light/dark mode"></div>
+        <div id="theme-toggle" title="Toggle light/dark mode" role="button" tabindex="0" aria-label="Toggle light and dark mode"></div>
     </div>
     
     <!-- Content Sections -->
@@ -149,11 +157,11 @@
     </section>
 
     <!-- Scripts -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r156/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.156.1/examples/jsm/postprocessing/EffectComposer.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.156.1/examples/jsm/postprocessing/RenderPass.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.156.1/examples/jsm/postprocessing/UnrealBloomPass.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.156.1/examples/jsm/postprocessing/ShaderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.174.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.174.0/examples/jsm/postprocessing/EffectComposer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.174.0/examples/jsm/postprocessing/RenderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.174.0/examples/jsm/postprocessing/UnrealBloomPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.174.0/examples/jsm/postprocessing/ShaderPass.js"></script>
     <script src="js/main.js"></script>
     
     <!-- Section Navigation Script -->
@@ -162,6 +170,7 @@
             // Section navigation
             const sections = document.querySelectorAll('.content-section');
             const closeBtns = document.querySelectorAll('.close-btn');
+            const themeToggle = document.getElementById('theme-toggle');
             
             // Handle section activation via hash
             function handleHashChange() {
@@ -177,6 +186,15 @@
                     const targetSection = document.querySelector(hash);
                     if (targetSection) {
                         targetSection.classList.add('active');
+                        // Set focus to the section for keyboard users
+                        targetSection.setAttribute('tabindex', '-1');
+                        targetSection.focus({ preventScroll: true });
+                        
+                        // Play section open sound if app exists
+                        if (window.app && window.app.createSectionOpenSound) {
+                            window.app.createSectionOpenSound();
+                        }
+                        
                         // Track page view for analytics
                         if (window.plausible) plausible('pageview', { props: { section: hash.substring(1) } });
                     }
@@ -193,14 +211,105 @@
             closeBtns.forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     e.preventDefault();
+                    
+                    // Play section close sound if app exists
+                    if (window.app && window.app.createSectionCloseSound) {
+                        window.app.createSectionCloseSound();
+                    }
+                    
                     history.pushState("", document.title, window.location.pathname);
                     handleHashChange();
                 });
             });
+            
+            // Theme toggle keyboard support
+            themeToggle.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    document.body.classList.toggle('light-mode');
+                    const theme = document.body.classList.contains('light-mode') ? 'light' : 'dark';
+                    localStorage.setItem('theme', theme);
+                    // This assumes your app object is accessible here
+                    if (window.app && window.app.updateVisualsForTheme) {
+                        window.app.updateVisualsForTheme(theme);
+                    }
+                }
+            });
+            
+            // Check for saved theme preference
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'light') {
+                document.body.classList.add('light-mode');
+                if (window.app && window.app.updateVisualsForTheme) {
+                    window.app.updateVisualsForTheme('light');
+                }
+            }
+            
+            // Add keyboard navigation for orbs
+            const orbs = document.querySelectorAll('.orb');
+            orbs.forEach(orb => {
+                // Play sound on hover
+                orb.addEventListener('mouseenter', () => {
+                    if (window.app && window.app.createOrbHighlightSound) {
+                        window.app.createOrbHighlightSound();
+                    }
+                });
+                
+                orb.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        
+                        // Play highlight sound
+                        if (window.app && window.app.createOrbHighlightSound) {
+                            window.app.createOrbHighlightSound();
+                        }
+                        
+                        window.location.hash = orb.getAttribute('href');
+                    }
+                });
+            });
+            
+            // Add sound to data input
+            const dataInput = document.getElementById('data-input');
+            if (dataInput) {
+                dataInput.addEventListener('keypress', (e) => {
+                    if (window.app && window.app.createDataInputSound) {
+                        window.app.createDataInputSound();
+                    }
+                });
+            }
         });
     </script>
     
     <!-- Privacy-friendly Analytics -->
     <script defer data-domain="micahoates.com" src="https://plausible.io/js/script.js"></script>
+    
+    <!-- Structured Data for SEO -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "Person",
+        "name": "Micah Oates",
+        "url": "https://micahoates.com",
+        "jobTitle": "Developer",
+        "description": "Developer, designer, and digital explorer passionate about creating immersive experiences at the intersection of technology and creativity.",
+        "sameAs": [
+            "https://linkedin.com/in/micahoates",
+            "https://github.com/micahoates"
+        ],
+        "knowsAbout": [
+            "Web Development",
+            "Interactive Design",
+            "Creative Coding",
+            "Three.js",
+            "WebGL",
+            "TensorFlow.js"
+        ],
+        "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": "https://micahoates.com"
+        }
+    }
+    </script>
 </body>
 </html>
