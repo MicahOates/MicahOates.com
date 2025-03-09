@@ -1291,34 +1291,33 @@ const app = {
     
     // Audio initialization and effects
     initAudio() {
-        // Don't create AudioContext immediately
-        // It will be created on user interaction
-        this.audioInitialized = false;
-        this.audioMuted = localStorage.getItem('audioMuted') === 'true';
-        
-        // Add an audio initialization flag
-        this.waitingForUserInteraction = true;
-        
-        // Add event listeners to initialize audio on first user interaction
+        // Set audio state
+        this.audioEnabled = false;
+        this.audioContext = null;
+        this.masterGain = null;
+        this.ambientSound = null;
+
+        // Wait for user interaction to initialize audio
         const initializeAudioOnInteraction = () => {
-            if (this.waitingForUserInteraction) {
+            if (!this.audioContext) {
                 this.createAudioContext();
-                this.waitingForUserInteraction = false;
+                this.setupAmbientSound();
+                this.setupInteractionSounds();
                 
-                // Remove event listeners once audio is initialized
-                document.removeEventListener('click', initializeAudioOnInteraction);
-                document.removeEventListener('touchstart', initializeAudioOnInteraction);
-                document.removeEventListener('keydown', initializeAudioOnInteraction);
+                // Optional: Add audio controls UI
+                this.addAudioControls();
             }
+            
+            // Remove event listeners after initialization
+            document.removeEventListener('click', initializeAudioOnInteraction);
+            document.removeEventListener('keydown', initializeAudioOnInteraction);
+            document.removeEventListener('touchstart', initializeAudioOnInteraction);
         };
-        
-        // Add event listeners for common user interactions
+
+        // Add event listeners for user interaction
         document.addEventListener('click', initializeAudioOnInteraction);
-        document.addEventListener('touchstart', initializeAudioOnInteraction);
         document.addEventListener('keydown', initializeAudioOnInteraction);
-        
-        // Add audio controls
-        this.addAudioControls();
+        document.addEventListener('touchstart', initializeAudioOnInteraction);
     },
     
     // New method to create AudioContext after user interaction
@@ -2176,103 +2175,35 @@ const app = {
     },
     
     createHawkingRadiation() {
-        // Create particles for Hawking radiation effect
-        // This demonstrates the quantum effect predicted by Stephen Hawking
-        // where virtual particles near the event horizon can become real,
-        // with one escaping and one falling into the black hole
+        const particleCount = 500;
+        const particles = new THREE.BufferGeometry();
         
-        // Create geometry for radiation particles
-        const particleCount = this.config.devicePerformance === 'low' ? 120 : 250;
-        const geometry = new THREE.BufferGeometry();
+        // Set up particle attributes
         const positions = new Float32Array(particleCount * 3);
         const sizes = new Float32Array(particleCount);
-        const lifespan = new Float32Array(particleCount);
-        const velocity = new Float32Array(particleCount * 3);
-        const particleType = new Float32Array(particleCount); // 0 for in-falling, 1 for escaping
+        const types = new Float32Array(particleCount);
         
-        // Calculate black hole properties
-        const horizonRadius = this.config.blackHoleRadius;
-        const emissionRadius = horizonRadius * 1.1; // Just outside event horizon
-        
-        // Ensure blackHoleParams exists before accessing
-        if (!this.blackHoleParams) {
-            this.blackHoleParams = {
-                radius: this.config.blackHoleRadius,
-                intensity: 1.5,
-                rotationSpeed: 1.0,
-                accretionDiskSize: this.config.accretionDiskRadius,
-                accretionBrightness: 1.0,
-                lensStrength: 10.0,
-                hawkingIntensity: 1.0,
-                timeDilationFactor: 1.0,
-                lensingIntensity: 1.0,
-                frameDraggingFactor: 1.0
-            };
-        }
-        
-        // Initialize particles
+        // Configure initial particle state
         for (let i = 0; i < particleCount; i++) {
-            // Create particles near the event horizon
-            // Distribute them around in a shell
-            const phi = Math.random() * Math.PI * 2;
-            const cosTheta = Math.random() * 2 - 1;
-            const sinTheta = Math.sqrt(1 - cosTheta * cosTheta);
-            
-            // Convert to Cartesian coordinates on sphere just outside event horizon
-            const x = emissionRadius * sinTheta * Math.cos(phi);
-            const y = emissionRadius * sinTheta * Math.sin(phi);
-            const z = emissionRadius * cosTheta;
-            
-            // Set initial position (all particles start at rest on the emission radius)
-            positions[i * 3] = x;
-            positions[i * 3 + 1] = y;
-            positions[i * 3 + 2] = z;
-            
-            // Random size - very small for quantum effect
-            sizes[i] = Math.random() * 0.3 + 0.1;
-            
-            // Randomize lifespan of particles (will determine their visibility)
-            lifespan[i] = Math.random();
-            
-            // In Hawking radiation, particle-antiparticle pairs are created
-            // One falls into the black hole, one escapes
-            // Generate pairs of particles
-            if (i % 2 === 0) {
-                // Escaping particle (positive energy)
-                particleType[i] = 1.0;
-                const speed = Math.random() * 0.05 + 0.03;
-                
-                // Velocity directed radially outward
-                const norm = Math.sqrt(x * x + y * y + z * z);
-                velocity[i * 3] = (x / norm) * speed;
-                velocity[i * 3 + 1] = (y / norm) * speed;
-                velocity[i * 3 + 2] = (z / norm) * speed;
-            } else {
-                // In-falling particle (negative energy)
-                particleType[i] = 0.0;
-                const speed = Math.random() * 0.05 + 0.02;
-                
-                // Velocity directed radially inward
-                const norm = Math.sqrt(x * x + y * y + z * z);
-                velocity[i * 3] = -(x / norm) * speed;
-                velocity[i * 3 + 1] = -(y / norm) * speed;
-                velocity[i * 3 + 2] = -(z / norm) * speed;
-            }
+            positions[i * 3] = (Math.random() - 0.5) * 5;
+            positions[i * 3 + 1] = (Math.random() - 0.5) * 5;
+            positions[i * 3 + 2] = (Math.random() - 0.5) * 5;
+            sizes[i] = Math.random() * 0.1 + 0.05;
+            types[i] = Math.random() > 0.5 ? 1.0 : 0.0;
         }
         
-        // Set buffer attributes
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
-        geometry.setAttribute('particleType', new THREE.BufferAttribute(particleType, 1));
+        particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        particles.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+        particles.setAttribute('particleType', new THREE.BufferAttribute(types, 1));
         
-        // Create shader material for Hawking radiation particles
-        const material = new THREE.ShaderMaterial({
+        // Create shader material
+        const hawkingMaterial = new THREE.ShaderMaterial({
             uniforms: {
                 time: { value: 0 },
                 escapeColor: { value: new THREE.Color(0xC9EEFF) }, // Blue for escaping particles
                 infallColor: { value: new THREE.Color(0xFF9999) }, // Red for in-falling particles
                 pixelRatio: { value: window.devicePixelRatio },
-                intensity: { value: this.blackHoleParams ? this.blackHoleParams.hawkingIntensity : 1.0 }
+                intensity: { value: this.blackHoleParams && this.blackHoleParams.hawkingIntensity !== undefined ? this.blackHoleParams.hawkingIntensity : 1.0 }
             },
             vertexShader: `
                 attribute float size;
@@ -2334,7 +2265,7 @@ const app = {
         });
         
         // Create the Hawking radiation particle system
-        this.hawkingRadiation = new THREE.Points(geometry, material);
+        this.hawkingRadiation = new THREE.Points(particles, hawkingMaterial);
         this.scene.add(this.hawkingRadiation);
         
         // Set initial visibility based on intensity
@@ -2343,13 +2274,11 @@ const app = {
         // Store original positions and other properties for animation
         this.hawkingRadiationData = {
             positions: positions,
-            velocity: velocity,
-            particleType: particleType,
-            lifespan: lifespan,
             sizes: sizes,
+            particleType: types,
             particleCount: particleCount,
-            horizonRadius: horizonRadius,
-            emissionRadius: emissionRadius,
+            horizonRadius: this.config.blackHoleRadius,
+            emissionRadius: this.config.blackHoleRadius * 1.1, // Just outside event horizon
             lastUpdateTime: 0
         };
     },
@@ -2361,7 +2290,7 @@ const app = {
         this.hawkingRadiation.material.uniforms.time.value = time;
         
         // Get references to stored data
-        const { positions, velocity, particleType, lifespan, particleCount, horizonRadius, emissionRadius } = this.hawkingRadiationData;
+        const { positions, sizes, particleType, particleCount, horizonRadius, emissionRadius } = this.hawkingRadiationData;
         
         // Get current intensity
         const intensity = this.blackHoleParams.hawkingIntensity;
@@ -2381,9 +2310,9 @@ const app = {
             let z = positionAttribute.getZ(i);
             
             // Apply velocity (scaled by intensity)
-            x += velocity[i * 3] * intensity;
-            y += velocity[i * 3 + 1] * intensity;
-            z += velocity[i * 3 + 2] * intensity;
+            x += positions[i * 3] * intensity;
+            y += positions[i * 3 + 1] * intensity;
+            z += positions[i * 3 + 2] * intensity;
             
             // Calculate current distance from center
             const distance = Math.sqrt(x * x + y * y + z * z);
@@ -2410,9 +2339,9 @@ const app = {
                         
                         // Velocity directed radially outward
                         const norm = Math.sqrt(x * x + y * y + z * z);
-                        velocity[i * 3] = (x / norm) * speed;
-                        velocity[i * 3 + 1] = (y / norm) * speed;
-                        velocity[i * 3 + 2] = (z / norm) * speed;
+                        positions[i * 3] = (x / norm) * speed;
+                        positions[i * 3 + 1] = (y / norm) * speed;
+                        positions[i * 3 + 2] = (z / norm) * speed;
                     } else {
                         // In-falling particle (negative energy)
                         particleType[i] = 0.0;
@@ -2420,9 +2349,9 @@ const app = {
                         
                         // Velocity directed radially inward
                         const norm = Math.sqrt(x * x + y * y + z * z);
-                        velocity[i * 3] = -(x / norm) * speed;
-                        velocity[i * 3 + 1] = -(y / norm) * speed;
-                        velocity[i * 3 + 2] = -(z / norm) * speed;
+                        positions[i * 3] = -(x / norm) * speed;
+                        positions[i * 3 + 1] = -(y / norm) * speed;
+                        positions[i * 3 + 2] = -(z / norm) * speed;
                     }
                 } else {
                     // For particles we don't reset, make them invisible by moving far away
@@ -2441,9 +2370,9 @@ const app = {
             const particleGravityFactor = particleType[i] > 0.5 ? 0.2 : 1.0;
             
             // Add gravitational velocity component
-            velocity[i * 3] += dir.x * gravitationalFactor * particleGravityFactor;
-            velocity[i * 3 + 1] += dir.y * gravitationalFactor * particleGravityFactor;
-            velocity[i * 3 + 2] += dir.z * gravitationalFactor * particleGravityFactor;
+            positions[i * 3] += dir.x * gravitationalFactor * particleGravityFactor;
+            positions[i * 3 + 1] += dir.y * gravitationalFactor * particleGravityFactor;
+            positions[i * 3 + 2] += dir.z * gravitationalFactor * particleGravityFactor;
             
             // Update position
             positionAttribute.setXYZ(i, x, y, z);
