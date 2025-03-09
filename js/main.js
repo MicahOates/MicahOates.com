@@ -113,7 +113,8 @@ const app = {
             rotationSpeed: 1.0,
             accretionDiskSize: this.config.accretionDiskRadius,
             accretionBrightness: 1.0,
-            lensStrength: 10.0
+            lensStrength: 10.0,
+            hawkingIntensity: 1.0
         };
         
         // Create control panel content
@@ -157,6 +158,12 @@ const app = {
                     <label for="lens-control">Lensing Strength</label>
                     <input type="range" id="lens-control" min="5" max="20" step="0.5" value="${this.blackHoleParams.lensStrength}">
                     <span class="control-value" id="lens-value">${this.blackHoleParams.lensStrength}</span>
+                </div>
+                
+                <div class="control-group">
+                    <label for="hawking-control">Hawking Radiation</label>
+                    <input type="range" id="hawking-control" min="0" max="2" step="0.1" value="${this.blackHoleParams.hawkingIntensity}">
+                    <span class="control-value" id="hawking-value">${this.blackHoleParams.hawkingIntensity}</span>
                 </div>
             </div>
             <div class="control-footer">
@@ -240,6 +247,12 @@ const app = {
                 this.gravityStars.material.uniforms.blackHoleRadius.value = value;
             }
             
+            // Update Hawking radiation emission radius
+            if (this.hawkingRadiationData) {
+                this.hawkingRadiationData.horizonRadius = value;
+                this.hawkingRadiationData.emissionRadius = value * 1.1;
+            }
+            
             this.playControlChangeSound();
         });
         
@@ -321,6 +334,32 @@ const app = {
             this.playControlChangeSound();
         });
         
+        // Hawking radiation control
+        const hawkingControl = document.getElementById('hawking-control');
+        const hawkingValue = document.getElementById('hawking-value');
+        
+        hawkingControl.addEventListener('input', () => {
+            const value = parseFloat(hawkingControl.value);
+            hawkingValue.textContent = value.toFixed(1);
+            this.blackHoleParams.hawkingIntensity = value;
+            
+            // Update Hawking radiation visibility
+            if (this.hawkingRadiation) {
+                // Only show radiation when intensity > 0
+                this.hawkingRadiation.visible = value > 0;
+                
+                // Update material with new intensity
+                if (this.hawkingRadiation.material.uniforms) {
+                    this.hawkingRadiation.material.uniforms.intensity = { value: value };
+                }
+                
+                // Create a special quantum effect when adjusting Hawking radiation
+                this.createQuantumFluctuationEffect(value);
+            }
+            
+            this.playControlChangeSound();
+        });
+        
         // Keyboard accessibility
         document.getElementById('control-toggle').addEventListener('keydown', (e) => {
             if (e.key === 'Enter' || e.key === ' ') {
@@ -348,7 +387,8 @@ const app = {
             rotationSpeed: 1.0,
             accretionDiskSize: this.config.accretionDiskRadius,
             accretionBrightness: 1.0,
-            lensStrength: 10.0
+            lensStrength: 10.0,
+            hawkingIntensity: 1.0
         };
         
         // Update UI sliders
@@ -370,6 +410,9 @@ const app = {
         document.getElementById('lens-control').value = this.blackHoleParams.lensStrength;
         document.getElementById('lens-value').textContent = this.blackHoleParams.lensStrength;
         
+        document.getElementById('hawking-control').value = this.blackHoleParams.hawkingIntensity;
+        document.getElementById('hawking-value').textContent = this.blackHoleParams.hawkingIntensity;
+        
         // Update visual elements
         this.updateBlackHoleFromControls();
     },
@@ -382,7 +425,8 @@ const app = {
             rotationSpeed: Math.random() * 2, // 0-2
             accretionDiskSize: Math.random() * 10 + 15, // 15-25
             accretionBrightness: Math.random() + 0.5, // 0.5-1.5
-            lensStrength: Math.random() * 15 + 5 // 5-20
+            lensStrength: Math.random() * 15 + 5, // 5-20
+            hawkingIntensity: Math.random() * 2 // 0-2
         };
         
         // Update UI sliders
@@ -403,6 +447,9 @@ const app = {
         
         document.getElementById('lens-control').value = this.blackHoleParams.lensStrength;
         document.getElementById('lens-value').textContent = this.blackHoleParams.lensStrength.toFixed(1);
+        
+        document.getElementById('hawking-control').value = this.blackHoleParams.hawkingIntensity;
+        document.getElementById('hawking-value').textContent = this.blackHoleParams.hawkingIntensity.toFixed(1);
         
         // Update visual elements
         this.updateBlackHoleFromControls();
@@ -493,6 +540,13 @@ const app = {
                 showNext: true
             },
             {
+                title: "Hawking Radiation",
+                content: "Stephen Hawking predicted that black holes emit radiation due to quantum effects near the event horizon. Watch for the subtle blue particles that appear just outside the event horizon.",
+                position: "center",
+                highlight: "blackhole",
+                showNext: true
+            },
+            {
                 title: "Interactive Input",
                 content: "Try typing in the input field to feed data into the black hole. Watch as your text is transformed into matter and consumed by the singularity.",
                 position: "bottom",
@@ -504,6 +558,13 @@ const app = {
                 content: "These orbs represent different sections of the site. Click them to explore more about me and my work.",
                 position: "right",
                 highlight: "orbs",
+                showNext: true
+            },
+            {
+                title: "Control Panel",
+                content: "Use the control panel (⚙️ icon) to adjust the black hole's properties, including event horizon size, gravitational intensity, and Hawking radiation.",
+                position: "bottom-right",
+                highlight: "controls",
                 showNext: true
             },
             {
@@ -554,7 +615,7 @@ const app = {
             },
             {
                 title: "Hawking Radiation",
-                content: "Theoretical physicist Stephen Hawking predicted that black holes slowly emit radiation due to quantum effects near the event horizon, causing them to gradually lose mass and eventually evaporate."
+                content: "Theoretical physicist Stephen Hawking predicted that black holes slowly emit radiation due to quantum effects near the event horizon. In quantum field theory, vacuum is not truly empty but filled with pairs of virtual particles that constantly appear and disappear. Near the event horizon, one particle of the pair may fall into the black hole while the other escapes, appearing as radiation emitted from the black hole. This process causes black holes to gradually lose mass and eventually evaporate. For stellar-mass black holes, this process takes longer than the current age of the universe, but smaller black holes would evaporate faster."
             },
             {
                 title: "Spaghettification",
@@ -811,6 +872,20 @@ const app = {
                 const orbsElement = document.getElementById('orbs');
                 if (orbsElement) {
                     const rect = orbsElement.getBoundingClientRect();
+                    highlight.style.top = `${rect.top - 10}px`;
+                    highlight.style.left = `${rect.left - 10}px`;
+                    highlight.style.width = `${rect.width + 20}px`;
+                    highlight.style.height = `${rect.height + 20}px`;
+                    highlight.style.borderRadius = '50%';
+                }
+                break;
+                
+            case 'controls':
+                // Control panel button highlight
+                highlight.classList.add('highlight-controls');
+                const controlsElement = document.getElementById('control-toggle');
+                if (controlsElement) {
+                    const rect = controlsElement.getBoundingClientRect();
                     highlight.style.top = `${rect.top - 10}px`;
                     highlight.style.left = `${rect.left - 10}px`;
                     highlight.style.width = `${rect.width + 20}px`;
@@ -1505,6 +1580,9 @@ const app = {
         // Create event horizon particles
         this.createEventHorizonParticles();
         
+        // Create Hawking radiation effect
+        this.createHawkingRadiation();
+        
         // Create magnetic field lines
         this.createMagneticFieldLines();
     },
@@ -1685,6 +1763,195 @@ const app = {
         
         this.eventHorizonParticles = new THREE.Points(particlesGeometry, particlesMaterial);
         this.scene.add(this.eventHorizonParticles);
+    },
+    
+    createHawkingRadiation() {
+        // Create particles for Hawking radiation effect
+        // This demonstrates the quantum effect predicted by Stephen Hawking
+        // where virtual particles near the event horizon can become real,
+        // with one escaping and one falling into the black hole
+        
+        // Create geometry for radiation particles
+        const particleCount = this.config.devicePerformance === 'low' ? 120 : 250;
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+        const sizes = new Float32Array(particleCount);
+        const lifespan = new Float32Array(particleCount);
+        const velocity = new Float32Array(particleCount * 3);
+        
+        // Calculate black hole properties
+        const horizonRadius = this.config.blackHoleRadius;
+        const emissionRadius = horizonRadius * 1.1; // Just outside event horizon
+        
+        // Initialize particles
+        for (let i = 0; i < particleCount; i++) {
+            // Create particles near the event horizon
+            // Distribute them around in a shell
+            const phi = Math.random() * Math.PI * 2;
+            const cosTheta = Math.random() * 2 - 1;
+            const sinTheta = Math.sqrt(1 - cosTheta * cosTheta);
+            
+            // Convert to Cartesian coordinates on sphere just outside event horizon
+            const x = emissionRadius * sinTheta * Math.cos(phi);
+            const y = emissionRadius * sinTheta * Math.sin(phi);
+            const z = emissionRadius * cosTheta;
+            
+            // Set initial position (all particles start at rest on the emission radius)
+            positions[i * 3] = x;
+            positions[i * 3 + 1] = y;
+            positions[i * 3 + 2] = z;
+            
+            // Random size - very small for quantum effect
+            sizes[i] = Math.random() * 0.3 + 0.1;
+            
+            // Randomize lifespan of particles (will determine their visibility)
+            lifespan[i] = Math.random();
+            
+            // Set velocity - either outward (escaping) or inward (falling in)
+            // This represents the particle-antiparticle pairs in Hawking radiation
+            // where one escapes and one falls into the black hole
+            const direction = Math.random() > 0.5 ? 1 : -1; // 50% chance of each direction
+            const speed = Math.random() * 0.05 + 0.02;
+            
+            // The velocity is directed radially outward or inward
+            const norm = Math.sqrt(x * x + y * y + z * z);
+            velocity[i * 3] = (x / norm) * speed * direction;
+            velocity[i * 3 + 1] = (y / norm) * speed * direction;
+            velocity[i * 3 + 2] = (z / norm) * speed * direction;
+        }
+        
+        // Set buffer attributes
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+        
+        // Create shader material for Hawking radiation particles
+        const material = new THREE.ShaderMaterial({
+            uniforms: {
+                time: { value: 0 },
+                color: { value: new THREE.Color(0xC9EEFF) }, // Slight blue for quantum effect
+                pixelRatio: { value: window.devicePixelRatio },
+                intensity: { value: this.blackHoleParams ? this.blackHoleParams.hawkingIntensity : 1.0 }
+            },
+            vertexShader: `
+                attribute float size;
+                uniform float time;
+                uniform float pixelRatio;
+                uniform float intensity;
+                
+                varying float vAlpha;
+                
+                void main() {
+                    // Pass particle position to fragment shader
+                    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                    
+                    // Adjust point size based on distance to camera and intensity
+                    gl_PointSize = size * pixelRatio * (250.0 / -mvPosition.z) * intensity;
+                    gl_Position = projectionMatrix * mvPosition;
+                    
+                    // Calculate alpha based on position and intensity
+                    vAlpha = smoothstep(0.0, 1.0, 1.0 - (length(mvPosition.xyz) / 50.0)) * intensity;
+                    vAlpha *= 0.7; // Keep it subtle
+                }
+            `,
+            fragmentShader: `
+                uniform vec3 color;
+                uniform float intensity;
+                
+                varying float vAlpha;
+                
+                void main() {
+                    // Circular particles with smooth edges
+                    float dist = length(gl_PointCoord - vec2(0.5));
+                    if (dist > 0.5) discard; // Discard pixels outside circle
+                    
+                    // Apply distance-based fading for soft particles
+                    float alpha = vAlpha * smoothstep(0.5, 0.2, dist);
+                    
+                    gl_FragColor = vec4(color, alpha * intensity);
+                }
+            `,
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
+        });
+        
+        // Create the Hawking radiation particle system
+        this.hawkingRadiation = new THREE.Points(geometry, material);
+        this.scene.add(this.hawkingRadiation);
+        
+        // Set initial visibility based on intensity
+        this.hawkingRadiation.visible = this.blackHoleParams.hawkingIntensity > 0;
+        
+        // Store original positions and other properties for animation
+        this.hawkingRadiationData = {
+            positions: positions,
+            velocity: velocity,
+            lifespan: lifespan,
+            sizes: sizes,
+            particleCount: particleCount,
+            horizonRadius: horizonRadius,
+            emissionRadius: emissionRadius
+        };
+    },
+    
+    updateHawkingRadiation(time) {
+        if (!this.hawkingRadiation || !this.hawkingRadiation.visible) return;
+        
+        // Update shader time uniform
+        this.hawkingRadiation.material.uniforms.time.value = time;
+        
+        // Get references to stored data
+        const { positions, velocity, lifespan, particleCount, horizonRadius, emissionRadius } = this.hawkingRadiationData;
+        
+        // Get current intensity
+        const intensity = this.blackHoleParams.hawkingIntensity;
+        
+        // Update geometry for animation
+        const positionAttribute = this.hawkingRadiation.geometry.getAttribute('position');
+        
+        for (let i = 0; i < particleCount; i++) {
+            // Calculate current position
+            let x = positionAttribute.getX(i);
+            let y = positionAttribute.getY(i);
+            let z = positionAttribute.getZ(i);
+            
+            // Apply velocity (scaled by intensity)
+            x += velocity[i * 3] * intensity;
+            y += velocity[i * 3 + 1] * intensity;
+            z += velocity[i * 3 + 2] * intensity;
+            
+            // Calculate current distance from center
+            const distance = Math.sqrt(x * x + y * y + z * z);
+            
+            // Reset particles that get too far away or fall into black hole
+            if (distance > 30 || distance < horizonRadius) {
+                // Similar to creation logic - reset at emission radius
+                const phi = Math.random() * Math.PI * 2;
+                const cosTheta = Math.random() * 2 - 1;
+                const sinTheta = Math.sqrt(1 - cosTheta * cosTheta);
+                
+                // Reset position to emission radius
+                x = emissionRadius * sinTheta * Math.cos(phi);
+                y = emissionRadius * sinTheta * Math.sin(phi);
+                z = emissionRadius * cosTheta;
+                
+                // Randomize direction again
+                const direction = Math.random() > 0.5 ? 1 : -1;
+                const speed = Math.random() * 0.05 + 0.02;
+                
+                // Reset velocity
+                const norm = Math.sqrt(x * x + y * y + z * z);
+                velocity[i * 3] = (x / norm) * speed * direction;
+                velocity[i * 3 + 1] = (y / norm) * speed * direction;
+                velocity[i * 3 + 2] = (z / norm) * speed * direction;
+            }
+            
+            // Update position
+            positionAttribute.setXYZ(i, x, y, z);
+        }
+        
+        // Mark the attribute for update
+        positionAttribute.needsUpdate = true;
     },
     
     createMagneticFieldLines() {
@@ -3172,25 +3439,23 @@ const app = {
         // Update delta time and elapsed time
         const elapsedTime = this.clock.getElapsedTime();
         
-        // Apply custom rotation speed
-        const rotationSpeed = this.blackHoleParams ? this.blackHoleParams.rotationSpeed : 1.0;
-        
         // Update black hole and effects
         if (this.blackHole && this.blackHole.material.uniforms) {
             this.blackHole.material.uniforms.time.value = elapsedTime;
-            this.blackHole.rotation.y = elapsedTime * 0.1 * rotationSpeed;
         }
         
         // Update accretion disk
         if (this.accretionDisk && this.accretionDisk.material.uniforms) {
             this.accretionDisk.material.uniforms.time.value = elapsedTime;
-            this.accretionDisk.rotation.z = elapsedTime * 0.2 * rotationSpeed;
         }
         
         // Update event horizon particles
         if (this.eventHorizonParticles && this.eventHorizonParticles.material.uniforms) {
             this.eventHorizonParticles.material.uniforms.time.value = elapsedTime;
         }
+        
+        // Update Hawking radiation particles
+        this.updateHawkingRadiation(elapsedTime);
         
         // Update magnetic field lines
         if (this.magneticFieldLines) {
@@ -3861,6 +4126,143 @@ const app = {
         // Create the nebula and add to scene
         this.nebula = new THREE.Mesh(nebulaGeometry, nebulaMaterial);
         this.scene.add(this.nebula);
+    },
+    
+    createQuantumFluctuationEffect(intensity) {
+        // Skip if intensity is very low
+        if (intensity < 0.2) return;
+        
+        // Create audio for quantum fluctuation (if audio is enabled)
+        if (this.audioContext && this.audioContext.state === 'running') {
+            // Quantum crackling sound
+            const now = this.audioContext.currentTime;
+            
+            // Create oscillator for high frequency component
+            const oscillator = this.audioContext.createOscillator();
+            oscillator.type = 'sine';
+            oscillator.frequency.value = 2000 + Math.random() * 3000;
+            
+            // Create noise for crackle effect
+            const noise = this.createNoiseGenerator();
+            
+            // Create filter to shape the noise
+            const filter = this.audioContext.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.frequency.value = 3000;
+            filter.Q.value = 1;
+            
+            // Create gain nodes to control volume
+            const oscGain = this.audioContext.createGain();
+            oscGain.gain.value = 0;
+            
+            const noiseGain = this.audioContext.createGain();
+            noiseGain.gain.value = 0;
+            
+            // Connect audio graph
+            oscillator.connect(oscGain);
+            noise.connect(filter);
+            filter.connect(noiseGain);
+            
+            oscGain.connect(this.masterGain);
+            noiseGain.connect(this.masterGain);
+            
+            // Start oscillator
+            oscillator.start(now);
+            
+            // Envelope for oscillator
+            oscGain.gain.setValueAtTime(0, now);
+            oscGain.gain.linearRampToValueAtTime(0.01 * intensity, now + 0.01);
+            oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+            
+            // Envelope for noise
+            noiseGain.gain.setValueAtTime(0, now);
+            noiseGain.gain.linearRampToValueAtTime(0.015 * intensity, now + 0.01);
+            noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+            
+            // Clean up
+            setTimeout(() => {
+                oscillator.stop();
+                oscillator.disconnect();
+                oscGain.disconnect();
+                filter.disconnect();
+                noiseGain.disconnect();
+                noise.disconnect();
+            }, 300);
+        }
+        
+        // Create visual effect - quantum fluctuation particles
+        const particleCount = Math.floor(10 * intensity);
+        if (particleCount <= 0) return;
+        
+        for (let i = 0; i < particleCount; i++) {
+            // Create particles at random positions near the black hole
+            const radius = this.config.blackHoleRadius * (1.1 + Math.random() * 0.5);
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(2 * Math.random() - 1);
+            
+            // Convert to Cartesian coordinates
+            const x = radius * Math.sin(phi) * Math.cos(theta);
+            const y = radius * Math.sin(phi) * Math.sin(theta);
+            const z = radius * Math.cos(phi);
+            
+            // Create a single particle geometry
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(3);
+            positions[0] = x;
+            positions[1] = y;
+            positions[2] = z;
+            
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            
+            // Create material with glow effect
+            const material = new THREE.PointsMaterial({
+                size: 1 + Math.random() * 2,
+                color: new THREE.Color(0xC9EEFF),
+                transparent: true,
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending
+            });
+            
+            // Create the particle
+            const particle = new THREE.Points(geometry, material);
+            this.scene.add(particle);
+            
+            // Animate the particle
+            const direction = Math.random() > 0.5 ? 1 : -1; // In or out
+            const speed = 0.2 + Math.random() * 0.3;
+            
+            const startTime = this.clock.getElapsedTime();
+            const lifetime = 0.5 + Math.random() * 0.5;
+            
+            // Animation function
+            const animateQuantumParticle = () => {
+                const currentTime = this.clock.getElapsedTime();
+                const elapsed = currentTime - startTime;
+                
+                if (elapsed < lifetime) {
+                    // Move particle
+                    const progress = elapsed / lifetime;
+                    const scale = 1 + progress * 2;
+                    
+                    // Scale particle outward
+                    particle.scale.set(scale, scale, scale);
+                    
+                    // Fade out over time
+                    material.opacity = 0.8 * (1 - progress);
+                    
+                    // Continue animation
+                    requestAnimationFrame(animateQuantumParticle);
+                } else {
+                    // Remove particle
+                    this.scene.remove(particle);
+                    geometry.dispose();
+                    material.dispose();
+                }
+            };
+            
+            // Start animation
+            animateQuantumParticle();
+        }
     }
 };
 
