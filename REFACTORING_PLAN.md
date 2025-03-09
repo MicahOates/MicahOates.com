@@ -28,9 +28,11 @@ js/
     │   ├── ParticleShader.js
     │   ├── StarfieldShader.js
     │   ├── GravitationalLensingShader.js
-    │   └── TimeDilationShader.js
+    │   ├── TimeDilationShader.js
+    │   └── NebulaShader.js
     ├── utils/              # Utility functions
-    │   └── PerformanceMonitor.js # Performance detection
+    │   ├── PerformanceMonitor.js # Performance detection
+    │   └── NoiseTextureGenerator.js # Texture generation
     └── main.js             # Entry point
 ```
 
@@ -87,9 +89,12 @@ js/
 - [x] Implement clock visualizations at different distances
 - [x] Add performance-based adaptations
 
-### Nebula Effect
-- [ ] Create separate module for nebula cloud rendering
-- [ ] Implement proper transparency and depth
+### ✅ Nebula Effect
+- [x] Create separate module for nebula cloud rendering
+- [x] Implement multi-layered volumetric clouds
+- [x] Implement nebula particles and dust
+- [x] Implement energy filaments
+- [x] Add dynamic procedural texture generation
 
 ## Phase 3: UI and Interaction Components
 
@@ -160,7 +165,9 @@ js/
 - ✅ Implemented SceneManager with camera controls and background
 - ✅ Implemented GravitationalLensing with two-pass rendering approach
 - ✅ Implemented TimeDilation with multiple visualization methods
+- ✅ Implemented NebulaEffect with volumetric clouds and filaments
 - ✅ Created PerformanceMonitor utility for dynamic quality adjustment
+- ✅ Created NoiseTextureGenerator utility for procedural textures
 - ✅ Fixed shader compilation errors related to gl_VertexID
 - ✅ Extracted all shaders to separate files
 - ✅ Implemented proper resource cleanup in all components
@@ -169,19 +176,16 @@ js/
 
 ## Next Steps
 
-1. Implement remaining advanced effect:
-   - Enhanced Nebula Effect
-
-2. Implement UI Manager with proper Three.js integration:
+1. Implement UI Manager with proper Three.js integration:
    - Navigation orbs
    - Quantum connections
    - Section navigation
 
-3. Implement Audio Manager:
+2. Implement Audio Manager:
    - Ambient sound generation
    - Interactive sound effects
 
-4. Create comprehensive documentation:
+3. Create comprehensive documentation:
    - Component diagrams
    - Performance tuning guide
    - Shader implementation details 

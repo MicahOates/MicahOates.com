@@ -7,6 +7,7 @@ import { ParticleSystem } from './core/ParticleSystem.js';
 import { PostProcessingManager } from './core/PostProcessingManager.js';
 import { GravitationalLensing } from './effects/GravitationalLensing.js';
 import { TimeDilation } from './effects/TimeDilation.js';
+import { NebulaEffect } from './effects/NebulaEffect.js';
 import { PerformanceMonitor } from './utils/PerformanceMonitor.js';
 
 /**
@@ -28,6 +29,7 @@ class BlackHoleApp {
             enableFilmGrain: options.enableFilmGrain !== undefined ? options.enableFilmGrain : true,
             enableGravitationalLensing: options.enableGravitationalLensing !== undefined ? options.enableGravitationalLensing : true,
             enableTimeDilation: options.enableTimeDilation !== undefined ? options.enableTimeDilation : true,
+            enableNebula: options.enableNebula !== undefined ? options.enableNebula : true,
             theme: options.theme || {
                 primary: '#8844ff',   // Purple
                 secondary: '#44aaff', // Blue
@@ -59,6 +61,7 @@ class BlackHoleApp {
         // Advanced effects
         this.gravitationalLensing = null;
         this.timeDilation = null;
+        this.nebulaEffect = null;
         
         // Initialize the app
         this.detectPerformance();
@@ -170,6 +173,12 @@ class BlackHoleApp {
             this.timeDilation = new TimeDilation(this);
             this.timeDilation.init();
         }
+        
+        // Initialize nebula effect if enabled
+        if (this.config.enableNebula) {
+            this.nebulaEffect = new NebulaEffect(this);
+            this.nebulaEffect.init();
+        }
     }
     
     /**
@@ -256,6 +265,11 @@ class BlackHoleApp {
         if (this.timeDilation) {
             this.timeDilation.update(this.time);
         }
+        
+        // Update nebula effect
+        if (this.nebulaEffect) {
+            this.nebulaEffect.update(this.time);
+        }
     }
     
     /**
@@ -318,6 +332,25 @@ class BlackHoleApp {
     }
     
     /**
+     * Toggle nebula effect
+     */
+    toggleNebula(enabled) {
+        if (this.nebulaEffect) {
+            this.nebulaEffect.setActive(enabled);
+            this.config.enableNebula = enabled;
+        }
+    }
+    
+    /**
+     * Set nebula intensity
+     */
+    setNebulaIntensity(intensity) {
+        if (this.nebulaEffect) {
+            this.nebulaEffect.setIntensity(intensity);
+        }
+    }
+    
+    /**
      * Clean up resources
      */
     dispose() {
@@ -328,6 +361,7 @@ class BlackHoleApp {
         if (this.postProcessingManager) this.postProcessingManager.dispose();
         if (this.gravitationalLensing) this.gravitationalLensing.dispose();
         if (this.timeDilation) this.timeDilation.dispose();
+        if (this.nebulaEffect) this.nebulaEffect.dispose();
         if (this.particleSystem) this.particleSystem.dispose();
         if (this.sceneManager) this.sceneManager.dispose();
         
@@ -352,6 +386,7 @@ function initApp() {
         showFPS: false,
         enableGravitationalLensing: true,
         enableTimeDilation: true,
+        enableNebula: true,
         theme: {
             primary: '#8844ff',
             secondary: '#44aaff',
