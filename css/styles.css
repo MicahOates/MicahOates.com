@@ -1578,3 +1578,23 @@ body.light-mode .highlight-frame-dragging {
     border-color: rgba(100, 50, 200, 0.7);
     box-shadow: 0 0 30px rgba(100, 50, 200, 0.5), inset 0 0 20px rgba(100, 50, 200, 0.3);
 }
+
+.privacy-notice {
+    margin-top: 30px;
+    padding: 15px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+    border-left: 3px solid #8844ff;
+}
+
+.privacy-notice h3 {
+    margin-top: 0;
+    color: #a280ff;
+    font-size: 18px;
+}
+
+.privacy-notice p {
+    margin-bottom: 0;
+    font-size: 14px;
+    line-height: 1.5;
+}

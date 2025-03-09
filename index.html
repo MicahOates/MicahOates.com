@@ -64,6 +64,11 @@
             <p>My journey spans across various domains of software development, from crafting responsive web applications to building high-performance backend systems. I'm particularly interested in the potential of generative systems, interactive visualizations, and the ways technology can create meaningful connections.</p>
             <p>When not coding, you might find me exploring new frameworks, contributing to open-source projects, or diving into the latest developments in AI and emerging technologies.</p>
             <p>This digital singularity serves as both a portfolio and a playground – feel free to explore, interact, and reach out if you'd like to collaborate or just chat about the digital universe.</p>
+            
+            <div class="privacy-notice">
+                <h3>Privacy Notice</h3>
+                <p>This website is completely analytics-free and does not track visitors in any way. Your privacy is respected and no personal data is collected during your visit. The entire codebase is open source and designed with privacy in mind.</p>
+            </div>
         </div>
     </section>
     
@@ -158,14 +163,10 @@
     </section>
 
     <!-- Scripts -->
-    <!-- Plausible Analytics - with development fallback -->
     <script>
-        // Mock Plausible in development to avoid errors
-        window.plausible = function(event, options) {
-            console.log('Plausible event:', event, options);
-        };
+        // No analytics tracking - removed for privacy
+        window.plausible = function() {}; // Empty function to prevent errors
     </script>
-    <script defer data-domain="micahoates.com" src="https://plausible.io/js/script.tagged-events.js" onError="console.log('Plausible analytics blocked or unavailable')"></script>
     
     <!-- Update Three.js loading to use ES modules format -->
     <script type="importmap">
@@ -209,8 +210,7 @@
                             window.app.createSectionOpenSound();
                         }
                         
-                        // Track page view for analytics
-                        if (window.plausible) plausible('pageview', { props: { section: hash.substring(1) } });
+                        // Analytics tracking removed for privacy
                     }
                 }
             }
