@@ -1,12 +1,12 @@
+@font-face {
+    font-family: 'Orbitron';
+    src: url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+}
+
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-}
-
-@font-face {
-    font-family: 'Quantum';
-    src: url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
 }
 
 :root {
@@ -35,7 +35,7 @@ body {
     background: var(--background);
     overflow: hidden;
     height: 100vh;
-    font-family: 'Quantum', 'Orbitron', 'Arial', sans-serif;
+    font-family: 'Orbitron', 'Arial', sans-serif;
     color: var(--text);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;

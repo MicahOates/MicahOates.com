@@ -1,0 +1,6 @@
+/* Font fix to override the incorrect @font-face in the main CSS */
+@font-face {
+    font-family: 'Orbitron';
+    /* Intentionally left empty to override the incorrect src */
+    src: local('Orbitron');
+} 

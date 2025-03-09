@@ -1583,6 +1583,9 @@ const app = {
         // Create Hawking radiation effect
         this.createHawkingRadiation();
         
+        // Create time dilation visualization
+        this.createTimeDilationEffect();
+        
         // Create magnetic field lines
         this.createMagneticFieldLines();
     },
@@ -3456,6 +3459,9 @@ const app = {
         
         // Update Hawking radiation particles
         this.updateHawkingRadiation(elapsedTime);
+        
+        // Update time dilation visualization
+        this.updateTimeDilation(elapsedTime);
         
         // Update magnetic field lines
         if (this.magneticFieldLines) {
