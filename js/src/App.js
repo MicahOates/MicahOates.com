@@ -7,6 +7,8 @@ import { NebulaEffect } from './effects/NebulaEffect.js';
 // Import UI systems
 import { UIManager } from './ui/UIManager.js';
 import { UIController } from './ui/UIController.js';
+// Import Audio system
+import { AudioManager } from './audio/AudioManager.js';
 
 /**
  * Main application class
@@ -31,6 +33,9 @@ export class App {
         this.uiManager = null;
         this.uiController = null;
         
+        // Audio system
+        this.audioManager = null;
+        
         // Animation
         this.isRunning = false;
         this.clock = new THREE.Clock();
@@ -50,23 +55,32 @@ export class App {
         });
         this.renderer.setPixelRatio(window.devicePixelRatio);
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setClearColor(0x000000, 1);
+        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        this.renderer.toneMappingExposure = 1.0;
         
-        // Append canvas to DOM
-        document.body.appendChild(this.renderer.domElement);
+        // Append to DOM
+        const canvas = document.getElementById('scene');
+        if (canvas) {
+            canvas.appendChild(this.renderer.domElement);
+        } else {
+            document.body.appendChild(this.renderer.domElement);
+        }
         
-        // Initialize core components
+        // Initialize scene
         this.initScene();
-        
-        // Initialize UI systems
-        this.initUIManager();
-        this.initUIController();
         
         // Initialize effects
         this.initEffects();
         
-        // Setup event listeners
-        window.addEventListener('resize', this.handleResize);
+        // Initialize UI
+        this.initUIManager();
+        this.initUIController();
+        
+        // Initialize Audio
+        this.initAudioManager();
+        
+        // Set up resize handler
+        window.addEventListener('resize', this.handleResize, false);
         
         // Start animation loop
         this.isRunning = true;
@@ -128,6 +142,14 @@ export class App {
     }
     
     /**
+     * Initialize the Audio Manager system
+     */
+    initAudioManager() {
+        this.audioManager = new AudioManager(this);
+        this.audioManager.init();
+    }
+    
+    /**
      * Animation loop
      */
     animate() {
@@ -139,17 +161,16 @@ export class App {
     }
     
     /**
-     * Update scene and effects
+     * Update called on each frame
      */
     update() {
         const time = this.clock.getElapsedTime();
         
-        // Update scene
+        // Update components
         if (this.sceneManager) {
             this.sceneManager.update(time);
         }
         
-        // Update effects
         if (this.blackHoleEffect) {
             this.blackHoleEffect.update(time);
         }
@@ -158,13 +179,19 @@ export class App {
             this.nebulaEffect.update(time);
         }
         
-        // Update UI systems
+        // Update UI
         if (this.uiManager) {
             this.uiManager.update(time);
         }
         
         if (this.uiController) {
-            this.uiController.update();
+            this.uiController.update(time);
+        }
+        
+        // Update audio visualization if needed
+        if (this.audioManager && this.audioManager.enabled) {
+            // The AudioManager doesn't have an update method yet, but we can add it if needed
+            // this.audioManager.update(time);
         }
     }
     
@@ -221,7 +248,7 @@ export class App {
     }
     
     /**
-     * Cleanup and dispose of resources
+     * Dispose and clean up resources
      */
     dispose() {
         // Stop animation loop
@@ -230,48 +257,52 @@ export class App {
         // Remove event listeners
         window.removeEventListener('resize', this.handleResize);
         
-        // Dispose scene
-        if (this.sceneManager) {
-            this.sceneManager.dispose();
+        // Dispose UI
+        if (this.uiManager) {
+            this.uiManager.dispose();
+            this.uiManager = null;
+        }
+        
+        if (this.uiController) {
+            this.uiController.dispose();
+            this.uiController = null;
+        }
+        
+        // Dispose audio
+        if (this.audioManager) {
+            this.audioManager.dispose();
+            this.audioManager = null;
         }
         
         // Dispose effects
         if (this.blackHoleEffect) {
             this.blackHoleEffect.dispose();
+            this.blackHoleEffect = null;
         }
         
         if (this.nebulaEffect) {
             this.nebulaEffect.dispose();
+            this.nebulaEffect = null;
         }
         
+        // Dispose scene
+        if (this.sceneManager) {
+            this.sceneManager.dispose();
+            this.sceneManager = null;
+        }
+        
+        // Dispose post-processing
         if (this.postProcessingManager) {
             this.postProcessingManager.dispose();
-        }
-        
-        // Dispose UI systems
-        if (this.uiManager) {
-            this.uiManager.dispose();
-        }
-        
-        if (this.uiController) {
-            this.uiController.dispose();
+            this.postProcessingManager = null;
         }
         
         // Dispose renderer
         if (this.renderer) {
             this.renderer.dispose();
-            document.body.removeChild(this.renderer.domElement);
+            this.renderer = null;
         }
         
-        // Clear references
-        this.scene = null;
-        this.camera = null;
-        this.renderer = null;
-        this.sceneManager = null;
-        this.postProcessingManager = null;
-        this.blackHoleEffect = null;
-        this.nebulaEffect = null;
-        this.uiManager = null;
-        this.uiController = null;
+        console.log('Application disposed');
     }
 } 

@@ -462,4 +462,68 @@ export class AudioManager {
             panner: panner
         };
     }
+    
+    /**
+     * Dispose of audio resources
+     */
+    dispose() {
+        if (!this.audioContext) return;
+        
+        // Stop all sounds
+        if (this.ambientSound) {
+            // Stop oscillators
+            if (this.ambientSound.lfo) {
+                this.ambientSound.lfo.stop();
+                this.ambientSound.lfo.disconnect();
+            }
+            
+            if (this.ambientSound.bassOsc) {
+                this.ambientSound.bassOsc.stop();
+                this.ambientSound.bassOsc.disconnect();
+            }
+            
+            if (this.ambientSound.padOsc) {
+                this.ambientSound.padOsc.stop();
+                this.ambientSound.padOsc.disconnect();
+            }
+            
+            // Disconnect other nodes
+            if (this.ambientSound.bassGain) this.ambientSound.bassGain.disconnect();
+            if (this.ambientSound.padGain) this.ambientSound.padGain.disconnect();
+            if (this.ambientSound.bassFilter) this.ambientSound.bassFilter.disconnect();
+            if (this.ambientSound.padFilter) this.ambientSound.padFilter.disconnect();
+            
+            this.ambientSound = null;
+        }
+        
+        // Clean up interaction sounds
+        for (const soundName in this.interactionSounds) {
+            if (this.interactionSounds[soundName].dispose) {
+                this.interactionSounds[soundName].dispose();
+            }
+        }
+        this.interactionSounds = {};
+        
+        // Disconnect master gain
+        if (this.masterGain) {
+            this.masterGain.disconnect();
+            this.masterGain = null;
+        }
+        
+        // Close audio context
+        if (this.audioContext && this.audioContext.state !== 'closed') {
+            if (this.audioContext.close) {
+                this.audioContext.close().catch(e => console.error('Error closing audio context:', e));
+            }
+            this.audioContext = null;
+        }
+        
+        // Remove UI elements
+        const audioControls = document.querySelector('.audio-controls');
+        if (audioControls) {
+            audioControls.remove();
+        }
+        
+        console.log('Audio Manager disposed');
+    }
 } 
