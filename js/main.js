@@ -1924,8 +1924,8 @@ const app = {
                 radius: { value: this.config.blackHoleRadius },
                 intensity: { value: 1.5 },
                 distortion: { value: 2.5 },
-                colorPrimary: { value: new THREE.Color(this.getThemeColor('primary') || '#ff00ff') },
-                colorSecondary: { value: new THREE.Color(this.getThemeColor('secondary') || '#00ffff') }
+                colorPrimary: { value: new THREE.Color(this.getThemeColor('primary') || '#d900d9') }, // Darker magenta
+                colorSecondary: { value: new THREE.Color(this.getThemeColor('secondary') || '#00d9d9') } // Darker cyan
             },
             vertexShader: `
                 varying vec3 vNormal;
@@ -1963,13 +1963,17 @@ const app = {
                     float energyPattern = abs(swirl * cos(time * 0.2));
                     
                     // Edge glow
-                    float edgeGlow = smoothstep(0.85, 1.0, dist) * smoothstep(1.15, 1.0, dist) * 1.5;
+                    float edgeGlow = smoothstep(0.85, 1.0, dist) * smoothstep(1.15, 1.0, dist) * 1.2; // Reduced from 1.5
                     
                     // Mix colors based on position and time
                     vec3 color = mix(colorPrimary, colorSecondary, sin(dist * 5.0 + time * 0.2) * 0.5 + 0.5);
                     
                     // Apply lensing darkness with edge glow
                     color = mix(vec3(0.0), color, eventHorizon * lensEffect + edgeGlow * energyPattern);
+                    
+                    // Add darkness toward the center
+                    float darkness = 1.0 - smoothstep(0.0, 0.5, dist);
+                    color = mix(color, vec3(0.0), darkness * 0.9);
                     
                     gl_FragColor = vec4(color, 1.0);
                 }
@@ -2016,8 +2020,9 @@ const app = {
                 time: { value: 0 },
                 innerRadius: { value: this.config.blackHoleRadius + 1 },
                 outerRadius: { value: this.config.accretionDiskRadius },
-                colorPrimary: { value: new THREE.Color(this.getThemeColor('primary') || '#ff00ff') },
-                colorSecondary: { value: new THREE.Color(this.getThemeColor('secondary') || '#00ffff') }
+                colorPrimary: { value: new THREE.Color(this.getThemeColor('primary') || '#d900d9') }, // Darker magenta
+                colorSecondary: { value: new THREE.Color(this.getThemeColor('secondary') || '#00d9d9') }, // Darker cyan
+                brightness: { value: 0.8 } // Overall brightness control
             },
             vertexShader: `
                 varying vec2 vUv;
@@ -2044,6 +2049,7 @@ const app = {
                 uniform float outerRadius;
                 uniform vec3 colorPrimary;
                 uniform vec3 colorSecondary;
+                uniform float brightness;
                 
                 varying vec2 vUv;
                 varying float vDistance;
@@ -2061,30 +2067,36 @@ const app = {
                     float hotSpot2 = 0.5 + 0.5 * sin(angle * 2.0 - time * 0.5 + 1.5);
                     float hotSpots = max(hotSpot1, hotSpot2);
                     
-                    // Color gradient from inner to outer
+                    // Color gradient from inner to outer - more balanced mix
                     vec3 baseColor = mix(colorPrimary, colorSecondary, swirl);
                     
+                    // Add more variation in color to prevent solid magenta
+                    float colorVariation = sin(angle * 10.0 + time * 0.5) * 0.5 + 0.5;
+                    baseColor = mix(baseColor, vec3(1.0, colorVariation, 1.0), 0.2);
+                    
                     // Brightness falls off toward outer edge
-                    float brightness = mix(1.0, 0.3, pow(normalizedDist, 0.5));
+                    float brightnessGradient = mix(1.0, 0.3, pow(normalizedDist, 0.5));
                     
-                    // Apply hot spots and brightness
-                    vec3 finalColor = baseColor * brightness * hotSpots;
+                    // Apply hot spots and brightness with overall control
+                    float finalBrightness = brightnessGradient * (0.7 + 0.3 * hotSpots) * brightness;
                     
-                    // Edge fade for smooth transition
-                    float edgeFade = smoothstep(1.0, 0.8, normalizedDist);
-                    float innerFade = smoothstep(0.0, 0.1, normalizedDist);
+                    // Adjust opacity for better blending
+                    float alpha = smoothstep(1.0, 0.8, normalizedDist) * 0.85; // More transparency
                     
-                    gl_FragColor = vec4(finalColor, edgeFade * innerFade);
+                    gl_FragColor = vec4(baseColor * finalBrightness, alpha);
                 }
             `,
             transparent: true,
-            side: THREE.DoubleSide,
+            depthWrite: false,
             blending: THREE.AdditiveBlending,
-            depthWrite: false
+            side: THREE.DoubleSide
         });
         
         this.accretionDisk = new THREE.Mesh(diskGeometry, diskMaterial);
-        this.accretionDisk.rotation.x = Math.PI / 4; // Tilt the disk
+        
+        // Tilt the disk slightly
+        this.accretionDisk.rotation.x = Math.PI / 6;
+        
         this.scene.add(this.accretionDisk);
     },
     
@@ -2182,7 +2194,9 @@ const app = {
     },
     
     createHawkingRadiation() {
-        const particleCount = 500;
+        // Reduce particle count based on device performance
+        const particleCount = this.config.devicePerformance === 'low' ? 150 : 
+                             (this.config.devicePerformance === 'medium' ? 300 : 400);
         const particles = new THREE.BufferGeometry();
         
         // Set up particle attributes
@@ -2190,27 +2204,37 @@ const app = {
         const sizes = new Float32Array(particleCount);
         const types = new Float32Array(particleCount);
         
-        // Configure initial particle state
+        // Initial particle state - place them away from the scene at first
         for (let i = 0; i < particleCount; i++) {
-            positions[i * 3] = (Math.random() - 0.5) * 5;
-            positions[i * 3 + 1] = (Math.random() - 0.5) * 5;
-            positions[i * 3 + 2] = (Math.random() - 0.5) * 5;
-            sizes[i] = Math.random() * 0.1 + 0.05;
-            types[i] = Math.random() > 0.5 ? 1.0 : 0.0;
+            // Start particles farther out in a spherical formation
+            const phi = Math.random() * Math.PI * 2;
+            const cosTheta = Math.random() * 2 - 1;
+            const sinTheta = Math.sqrt(1 - cosTheta * cosTheta);
+            const radius = this.config.blackHoleRadius * 1.2 + Math.random() * 0.5;
+            
+            positions[i * 3] = radius * sinTheta * Math.cos(phi);
+            positions[i * 3 + 1] = radius * sinTheta * Math.sin(phi);
+            positions[i * 3 + 2] = radius * cosTheta;
+            
+            // Smaller, more subtle particles
+            sizes[i] = Math.random() * 0.05 + 0.02;
+            
+            // Alternating particle types (escaping/in-falling)
+            types[i] = i % 2 === 0 ? 1.0 : 0.0;
         }
         
         particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         particles.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
         particles.setAttribute('particleType', new THREE.BufferAttribute(types, 1));
         
-        // Create shader material
+        // Create shader material with improved transparency and blending
         const hawkingMaterial = new THREE.ShaderMaterial({
             uniforms: {
                 time: { value: 0 },
-                escapeColor: { value: new THREE.Color(0xC9EEFF) }, // Blue for escaping particles
-                infallColor: { value: new THREE.Color(0xFF9999) }, // Red for in-falling particles
+                escapeColor: { value: new THREE.Color(0x82C6F0) }, // Even softer blue
+                infallColor: { value: new THREE.Color(0xF0A082) }, // Even softer orange
                 pixelRatio: { value: window.devicePixelRatio },
-                intensity: { value: this.blackHoleParams && this.blackHoleParams.hawkingIntensity !== undefined ? this.blackHoleParams.hawkingIntensity : 1.0 }
+                intensity: { value: this.blackHoleParams && this.blackHoleParams.hawkingIntensity !== undefined ? this.blackHoleParams.hawkingIntensity : 0.7 }
             },
             vertexShader: `
                 attribute float size;
@@ -2228,16 +2252,19 @@ const app = {
                     vParticleType = particleType;
                     
                     // Adjust point size based on distance to camera and intensity
-                    gl_PointSize = size * pixelRatio * (250.0 / -mvPosition.z) * intensity;
+                    // Even smaller point size to reduce artifacts
+                    gl_PointSize = size * pixelRatio * (180.0 / -mvPosition.z) * intensity;
                     gl_Position = projectionMatrix * mvPosition;
                     
                     // Calculate alpha based on position and intensity
                     // Make escaping particles more visible than in-falling ones
-                    float visibilityFactor = particleType > 0.5 ? 1.0 : 0.6;
+                    float visibilityFactor = particleType > 0.5 ? 0.7 : 0.4;
                     vAlpha = smoothstep(0.0, 1.0, 1.0 - (length(mvPosition.xyz) / 50.0)) * intensity * visibilityFactor;
                     
-                    // Add temporal variation for quantum fluctuation effect
-                    vAlpha *= 0.7 + 0.3 * sin(time * 5.0 + gl_VertexID * 0.1);
+                    // Add temporal variation for quantum fluctuation effect - even subtler
+                    // Using modulated position instead of gl_VertexID which isn't available in all WebGL versions
+                    float vertexRandomFactor = fract(sin(dot(position.xyz, vec3(12.9898, 78.233, 45.543))) * 43758.5453);
+                    vAlpha *= 0.85 + 0.15 * sin(time * 1.5 + vertexRandomFactor * 10.0);
                 }
             `,
             fragmentShader: `
@@ -2254,29 +2281,31 @@ const app = {
                     float dist = length(gl_PointCoord - vec2(0.5));
                     if (dist > 0.5) discard; // Discard pixels outside circle
                     
-                    // Apply distance-based fading for soft particles
-                    float alpha = vAlpha * smoothstep(0.5, 0.2, dist);
+                    // Apply stronger distance-based fading for softer particles
+                    float alpha = vAlpha * smoothstep(0.5, 0.1, dist) * 0.5; // Reduced opacity
                     
                     // Choose color based on particle type
                     vec3 color = mix(infallColor, escapeColor, vParticleType);
                     
-                    // Add subtle glow effect for quantum appearance
-                    float glowFactor = 1.0 + 0.2 * sin(time * 3.0 + vParticleType * 6.28);
+                    // Add very subtle glow effect
+                    float glowFactor = 1.0 + 0.05 * sin(time * 1.5 + vParticleType * 3.14); // Even subtler glow
                     
-                    gl_FragColor = vec4(color * glowFactor, alpha * intensity);
+                    gl_FragColor = vec4(color * glowFactor, alpha * min(0.8, intensity)); // Cap the opacity
                 }
             `,
             transparent: true,
             depthWrite: false,
+            depthTest: true,
             blending: THREE.AdditiveBlending
         });
         
         // Create the Hawking radiation particle system
         this.hawkingRadiation = new THREE.Points(particles, hawkingMaterial);
-        this.scene.add(this.hawkingRadiation);
         
-        // Set initial visibility based on intensity
-        this.hawkingRadiation.visible = this.blackHoleParams.hawkingIntensity > 0;
+        // Only add to scene if intensity is above minimum threshold
+        if (this.blackHoleParams && this.blackHoleParams.hawkingIntensity > 0.1) {
+            this.scene.add(this.hawkingRadiation);
+        }
         
         // Store original positions and other properties for animation
         this.hawkingRadiationData = {
@@ -2285,29 +2314,47 @@ const app = {
             particleType: types,
             particleCount: particleCount,
             horizonRadius: this.config.blackHoleRadius,
-            emissionRadius: this.config.blackHoleRadius * 1.1, // Just outside event horizon
+            emissionRadius: this.config.blackHoleRadius * 1.2, // Slightly farther from event horizon
             lastUpdateTime: 0
         };
     },
     
     updateHawkingRadiation(time) {
-        if (!this.hawkingRadiation || !this.hawkingRadiation.visible) return;
+        // Skip update if effect doesn't exist or is disabled
+        if (!this.hawkingRadiation || 
+            !this.blackHoleParams || 
+            this.blackHoleParams.hawkingIntensity <= 0.1) {
+            
+            // If visible but should be hidden, remove from scene
+            if (this.hawkingRadiation && this.scene.children.includes(this.hawkingRadiation) && 
+                (!this.blackHoleParams || this.blackHoleParams.hawkingIntensity <= 0.1)) {
+                this.scene.remove(this.hawkingRadiation);
+            }
+            
+            return;
+        }
         
-        // Update shader time uniform
-        this.hawkingRadiation.material.uniforms.time.value = time;
+        // If it should be visible but isn't in the scene, add it
+        if (!this.scene.children.includes(this.hawkingRadiation)) {
+            this.scene.add(this.hawkingRadiation);
+        }
+        
+        // Update shader time uniform with a slower value to reduce flickering
+        this.hawkingRadiation.material.uniforms.time.value = time * 0.5;
+        this.hawkingRadiation.material.uniforms.intensity.value = this.blackHoleParams.hawkingIntensity;
         
         // Get references to stored data
         const { positions, sizes, particleType, particleCount, horizonRadius, emissionRadius } = this.hawkingRadiationData;
         
-        // Get current intensity
-        const intensity = this.blackHoleParams.hawkingIntensity;
+        // Get current intensity (clamped to prevent extreme values)
+        const intensity = Math.min(1.5, Math.max(0.1, this.blackHoleParams.hawkingIntensity));
         
         // Update geometry for animation
         const positionAttribute = this.hawkingRadiation.geometry.getAttribute('position');
         
         // Use time to create a emission rate that depends on intensity
-        // Higher intensity = more frequent emissions
-        const emissionRate = 0.05 * intensity;
+        // Lower emission rate to reduce visual noise
+        const emissionRate = 0.02 * intensity;
         const emitParticle = Math.random() < emissionRate;
         
         for (let i = 0; i < particleCount; i++) {
@@ -2317,17 +2364,30 @@ const app = {
             let z = positionAttribute.getZ(i);
             
             // Apply velocity (scaled by intensity)
-            x += positions[i * 3] * intensity;
-            y += positions[i * 3 + 1] * intensity;
-            z += positions[i * 3 + 2] * intensity;
+            const movementSpeed = 0.005 * intensity;
+            
+            if (particleType[i] > 0.5) {
+                // Escaping particles - move outward
+                const dir = new THREE.Vector3(x, y, z).normalize();
+                x += dir.x * movementSpeed;
+                y += dir.y * movementSpeed;
+                z += dir.z * movementSpeed;
+            } else {
+                // In-falling particles - move inward
+                const dir = new THREE.Vector3(-x, -y, -z).normalize();
+                x += dir.x * movementSpeed * 0.7;
+                y += dir.y * movementSpeed * 0.7;
+                z += dir.z * movementSpeed * 0.7;
+            }
             
             // Calculate current distance from center
             const distance = Math.sqrt(x * x + y * y + z * z);
             
             // Reset particles that get too far away or fall into black hole
-            if (distance > 30 || distance < horizonRadius) {
+            // More controlled respawn logic
+            if (distance > 20 || distance < horizonRadius) {
                 // Only emit new particles based on emission rate
-                if (emitParticle || i % 20 === 0) { // Ensure minimum activity
+                if (emitParticle || i % 50 === 0) { // Much less frequent respawning
                     // Similar to creation logic - reset at emission radius
                     const phi = Math.random() * Math.PI * 2;
                     const cosTheta = Math.random() * 2 - 1;
@@ -2338,48 +2398,31 @@ const app = {
                     y = emissionRadius * sinTheta * Math.sin(phi);
                     z = emissionRadius * cosTheta;
                     
-                    // Create new particle pair
-                    if (i % 2 === 0) {
-                        // Escaping particle (positive energy)
-                        particleType[i] = 1.0;
-                        const speed = Math.random() * 0.05 + 0.03;
-                        
-                        // Velocity directed radially outward
-                        const norm = Math.sqrt(x * x + y * y + z * z);
-                        positions[i * 3] = (x / norm) * speed;
-                        positions[i * 3 + 1] = (y / norm) * speed;
-                        positions[i * 3 + 2] = (z / norm) * speed;
-                    } else {
-                        // In-falling particle (negative energy)
-                        particleType[i] = 0.0;
-                        const speed = Math.random() * 0.05 + 0.02;
-                        
-                        // Velocity directed radially inward
-                        const norm = Math.sqrt(x * x + y * y + z * z);
-                        positions[i * 3] = -(x / norm) * speed;
-                        positions[i * 3 + 1] = -(y / norm) * speed;
-                        positions[i * 3 + 2] = -(z / norm) * speed;
-                    }
+                    // Alternate particle types
+                    particleType[i] = i % 2 === 0 ? 1.0 : 0.0;
+                    
+                    // Reset size for variation
+                    sizes[i] = Math.random() * 0.05 + 0.02;
                 } else {
-                    // For particles we don't reset, make them invisible by moving far away
-                    x = 1000;
-                    y = 1000;
-                    z = 1000;
+                    // For particles we don't reset, move them far away but not at the same position
+                    // to prevent clumping when they return
+                    x = 1000 + Math.random() * 100;
+                    y = 1000 + Math.random() * 100;
+                    z = 1000 + Math.random() * 100;
                 }
             }
             
-            // Add slight gravitational influence for more realism
-            // Get direction vector to black hole center
+            // Add very subtle gravitational influence
             const dir = new THREE.Vector3(-x, -y, -z).normalize();
-            const gravitationalFactor = 0.001 / (distance * distance) * horizonRadius;
+            const gravitationalFactor = 0.0005 / (distance * distance) * horizonRadius;
             
             // Apply gravitational influence more strongly to in-falling particles
-            const particleGravityFactor = particleType[i] > 0.5 ? 0.2 : 1.0;
+            const particleGravityFactor = particleType[i] > 0.5 ? 0.1 : 0.5;
             
             // Add gravitational velocity component
-            positions[i * 3] += dir.x * gravitationalFactor * particleGravityFactor;
-            positions[i * 3 + 1] += dir.y * gravitationalFactor * particleGravityFactor;
-            positions[i * 3 + 2] += dir.z * gravitationalFactor * particleGravityFactor;
+            x += dir.x * gravitationalFactor * particleGravityFactor;
+            y += dir.y * gravitationalFactor * particleGravityFactor;
+            z += dir.z * gravitationalFactor * particleGravityFactor;
             
             // Update position
             positionAttribute.setXYZ(i, x, y, z);
@@ -2394,6 +2437,13 @@ const app = {
             particleTypeAttribute.setX(i, particleType[i]);
         }
         particleTypeAttribute.needsUpdate = true;
+        
+        // Update sizes for subtle variation
+        const sizeAttribute = this.hawkingRadiation.geometry.getAttribute('size');
+        for (let i = 0; i < particleCount; i++) {
+            sizeAttribute.setX(i, sizes[i] * (0.8 + 0.2 * Math.sin(time + i)));
+        }
+        sizeAttribute.needsUpdate = true;
     },
     
     createMagneticFieldLines() {
@@ -2456,7 +2506,9 @@ const app = {
                         vec3 pos = position;
                         
                         // Animate the field lines with subtle movement
-                        float angle = time * 0.5 + float(gl_VertexID) * 0.1;
+                        // Use position hash instead of gl_VertexID for WebGL compatibility
+                        float vertexHash = fract(sin(dot(position.xyz, vec3(12.9898, 78.233, 45.543))) * 43758.5453);
+                        float angle = time * 0.5 + vertexHash * 6.28;
                         pos.x += sin(angle) * 0.2;
                         pos.y += cos(angle) * 0.2;
                         
@@ -2676,12 +2728,226 @@ const app = {
         const renderPass = new RenderPass(this.scene, this.camera);
         this.composer.addPass(renderPass);
         
+        // Create custom color correction shader to balance colors and reduce purple saturation
+        const colorCorrectionShader = {
+            uniforms: {
+                "tDiffuse": { value: null },
+                "saturation": { value: 0.9 }, // Slightly reduce overall saturation
+                "magentaCorrection": { value: 0.8 }, // Specifically reduce magenta/purple
+                "brightness": { value: 1.0 }
+            },
+            vertexShader: `
+                varying vec2 vUv;
+                void main() {
+                    vUv = uv;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform sampler2D tDiffuse;
+                uniform float saturation;
+                uniform float magentaCorrection;
+                uniform float brightness;
+                varying vec2 vUv;
+                
+                // Helper function for HSL to RGB conversion
+                float hue2rgb(float p, float q, float t) {
+                    if (t < 0.0) t += 1.0;
+                    if (t > 1.0) t -= 1.0;
+                    if (t < 1.0/6.0) return p + (q - p) * 6.0 * t;
+                    if (t < 1.0/2.0) return q;
+                    if (t < 2.0/3.0) return p + (q - p) * (2.0/3.0 - t) * 6.0;
+                    return p;
+                }
+                
+                // Function to convert RGB to HSL
+                vec3 rgb2hsl(vec3 color) {
+                    float maxColor = max(max(color.r, color.g), color.b);
+                    float minColor = min(min(color.r, color.g), color.b);
+                    float delta = maxColor - minColor;
+                    
+                    float h = 0.0;
+                    float s = 0.0;
+                    float l = (maxColor + minColor) / 2.0;
+                    
+                    if (delta > 0.0) {
+                        s = l < 0.5 ? delta / (maxColor + minColor) : delta / (2.0 - maxColor - minColor);
+                        
+                        if (color.r == maxColor) {
+                            h = (color.g - color.b) / delta + (color.g < color.b ? 6.0 : 0.0);
+                        } else if (color.g == maxColor) {
+                            h = (color.b - color.r) / delta + 2.0;
+                        } else {
+                            h = (color.r - color.g) / delta + 4.0;
+                        }
+                        h /= 6.0;
+                    }
+                    
+                    return vec3(h, s, l);
+                }
+                
+                // Function to convert HSL to RGB
+                vec3 hsl2rgb(vec3 hsl) {
+                    float h = hsl.x;
+                    float s = hsl.y;
+                    float l = hsl.z;
+                    
+                    float r, g, b;
+                    
+                    if (s == 0.0) {
+                        r = g = b = l;
+                    } else {
+                        float q = l < 0.5 ? l * (1.0 + s) : l + s - l * s;
+                        float p = 2.0 * l - q;
+                        
+                        r = hue2rgb(p, q, h + 1.0/3.0);
+                        g = hue2rgb(p, q, h);
+                        b = hue2rgb(p, q, h - 1.0/3.0);
+                    }
+                    
+                    return vec3(r, g, b);
+                }
+                
+                void main() {
+                    vec4 texel = texture2D(tDiffuse, vUv);
+                    
+                    // Detect if the color has high magenta/purple values
+                    bool isPurplish = texel.r > 0.5 && texel.b > 0.5 && texel.g < 0.5;
+                    
+                    // Apply stronger correction to magenta/purple colors
+                    float purpleReduction = isPurplish ? magentaCorrection : 1.0;
+                    
+                    // Reduce the red and blue channels for purplish colors
+                    if (isPurplish) {
+                        texel.r *= magentaCorrection;
+                        texel.b *= magentaCorrection;
+                    }
+                    
+                    // Apply general saturation adjustment
+                    vec3 hsl = rgb2hsl(texel.rgb);
+                    hsl.y *= saturation; // Adjust saturation
+                    
+                    // Specific correction for magenta/purple hue range (around 0.8-0.95)
+                    if (hsl.x > 0.7 && hsl.x < 0.95) {
+                        hsl.y *= magentaCorrection; // Reduce saturation for purples/magentas
+                    }
+                    
+                    texel.rgb = hsl2rgb(hsl);
+                    
+                    // Adjust brightness
+                    texel.rgb *= brightness;
+                    
+                    gl_FragColor = texel;
+                }
+            `
+        };
+        
+        // Create custom chromatic aberration shader with reduced effect
+        const chromaticAberrationShader = {
+            uniforms: {
+                "tDiffuse": { value: null },
+                "resolution": { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+                "intensity": { value: 0.0015 }, // Reduced intensity (was 0.003)
+                "time": { value: 0 }
+            },
+            vertexShader: `
+                varying vec2 vUv;
+                void main() {
+                    vUv = uv;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform sampler2D tDiffuse;
+                uniform vec2 resolution;
+                uniform float intensity;
+                uniform float time;
+                varying vec2 vUv;
+                
+                void main() {
+                    vec2 uv = vUv;
+                    
+                    // Subtle distortion based on distance from center
+                    vec2 center = vec2(0.5, 0.5);
+                    float dist = length(uv - center);
+                    
+                    // Add slight animation to the effect
+                    float aberrationIntensity = intensity * (1.0 + 0.2 * sin(time * 0.5));
+                    
+                    // Apply stronger aberration near black hole
+                    float blackHoleEffect = smoothstep(0.0, 0.6, dist) * aberrationIntensity;
+                    
+                    // Sample with RGB channel separation - more balanced colors
+                    vec2 dir = normalize(uv - center);
+                    vec4 result;
+                    
+                    // Reduced red/blue channel separation to prevent purple artifacts
+                    result.r = texture2D(tDiffuse, uv - dir * blackHoleEffect * 0.7).r;
+                    result.g = texture2D(tDiffuse, uv).g;
+                    result.b = texture2D(tDiffuse, uv + dir * blackHoleEffect * 0.7).b;
+                    result.a = 1.0;
+                    
+                    gl_FragColor = result;
+                }
+            `
+        };
+        
+        // Create a subtle film grain shader
+        const filmGrainShader = {
+            uniforms: {
+                "tDiffuse": { value: null },
+                "time": { value: 0 },
+                "nIntensity": { value: 0.1 }, // Reduced noise intensity (was 0.15)
+                "sIntensity": { value: 0.03 }, // Reduced scanline intensity (was 0.05)
+                "sCount": { value: 1024 } // Scanline count
+            },
+            vertexShader: `
+                varying vec2 vUv;
+                void main() {
+                    vUv = uv;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform sampler2D tDiffuse;
+                uniform float time;
+                uniform float nIntensity; // Noise intensity
+                uniform float sIntensity; // Scanline intensity
+                uniform float sCount; // Scanline count
+                varying vec2 vUv;
+                
+                float random(vec2 n) { 
+                    return fract(sin(dot(n, vec2(12.9898, 4.1414))) * 43758.5453);
+                }
+                
+                void main() {
+                    // Get the pixel color
+                    vec4 color = texture2D(tDiffuse, vUv);
+                    
+                    // Film grain
+                    float noise = random(vUv * time) * nIntensity;
+                    
+                    // Scanlines
+                    float scanlines = step(0.5, sin(vUv.y * sCount)) * sIntensity;
+                    
+                    // Combine effects
+                    color.rgb += noise - scanlines;
+                    
+                    gl_FragColor = color;
+                }
+            `
+        };
+        
         // Only add bloom if device can handle it
         if (this.config.bloom && this.config.devicePerformance !== 'low') {
+            // Add color correction first - this will balance colors before other effects
+            const colorCorrectionPass = new ShaderPass(colorCorrectionShader);
+            this.composer.addPass(colorCorrectionPass);
+            
             // Add bloom pass with optimized settings based on performance
-            const bloomStrength = this.config.devicePerformance === 'high' ? 1.5 : 1.0;
-            const bloomRadius = this.config.devicePerformance === 'high' ? 0.7 : 0.5;
-            const bloomThreshold = 0.2;
+            const bloomStrength = this.config.devicePerformance === 'high' ? 0.6 : 0.45; // Reduced strength (was 0.8/0.6)
+            const bloomRadius = this.config.devicePerformance === 'high' ? 0.5 : 0.35; // Reduced radius (was 0.6/0.4)
+            const bloomThreshold = 0.4; // Increased threshold to reduce bloom on less bright areas (was 0.3)
             
             const bloomPass = new UnrealBloomPass(
                 new THREE.Vector2(window.innerWidth, window.innerHeight),
@@ -2689,17 +2955,87 @@ const app = {
                 bloomRadius,
                 bloomThreshold
             );
+            
+            // Use selective bloom for better control
+            bloomPass.threshold = bloomThreshold;
+            bloomPass.strength = bloomStrength;
+            bloomPass.radius = bloomRadius;
+            
             this.composer.addPass(bloomPass);
+            
+            // Add chromatic aberration for high-end devices (subtle cinematic effect)
+            if (this.config.devicePerformance === 'high') {
+                const chromaticAberrationPass = new ShaderPass(chromaticAberrationShader);
+                this.composer.addPass(chromaticAberrationPass);
+            }
+            
+            // Add subtle film grain for all devices
+            const filmGrainPass = new ShaderPass(filmGrainShader);
+            this.composer.addPass(filmGrainPass);
         }
+        
+        // Store the passes for later updates
+        this.effectPasses = this.composer.passes.filter(pass => pass !== renderPass);
     },
     
     initOrbs() {
         const orbs = document.querySelectorAll('.orb');
+        
+        // Define orb properties for different device performance levels
+        const orbProperties = {
+            high: {
+                particleCount: 25,
+                lineWidth: 1.5,
+                trailLength: 12,
+                pulseIntensity: 1.0,
+                quantumConnectionsEnabled: true
+            },
+            medium: {
+                particleCount: 15,
+                lineWidth: 1.0,
+                trailLength: 8,
+                pulseIntensity: 0.8,
+                quantumConnectionsEnabled: true
+            },
+            low: {
+                particleCount: 8,
+                lineWidth: 0.8,
+                trailLength: 4,
+                pulseIntensity: 0.5,
+                quantumConnectionsEnabled: false
+            }
+        };
+        
+        // Get properties based on device performance
+        const props = orbProperties[this.config.devicePerformance || 'medium'];
+        
         this.orbData = Array.from(orbs).map((orb, index) => {
             // Calculate starting positions in a circle
             const totalOrbs = orbs.length;
             const angle = (index / totalOrbs) * Math.PI * 2;
             const radius = Math.min(this.sizes.width, this.sizes.height) * 0.3;
+            
+            // Create individual particle trails for each orb
+            if (props.trailLength > 0) {
+                const trailContainer = document.createElement('div');
+                trailContainer.className = 'orb-trail';
+                orb.appendChild(trailContainer);
+                
+                // Add individual trail particles
+                for (let i = 0; i < props.trailLength; i++) {
+                    const particle = document.createElement('div');
+                    particle.className = 'trail-particle';
+                    particle.style.opacity = 1 - (i / props.trailLength);
+                    particle.style.width = `${8 * (1 - i/props.trailLength)}px`;
+                    particle.style.height = `${8 * (1 - i/props.trailLength)}px`;
+                    trailContainer.appendChild(particle);
+                }
+            }
+            
+            // Add subtle glow effect element to each orb
+            const glowElement = document.createElement('div');
+            glowElement.className = 'orb-glow';
+            orb.appendChild(glowElement);
             
             return {
                 element: orb,
@@ -2712,15 +3048,166 @@ const app = {
                 radius: radius,
                 angle: angle,
                 baseAngle: angle,
-                speed: 0.005 + Math.random() * 0.005,
+                speed: 0.004 + Math.random() * 0.003, // Slightly slower for smoother motion
                 entangled: false,
                 hoverState: false,
-                pulsePhase: Math.random() * Math.PI * 2
+                pulsePhase: Math.random() * Math.PI * 2,
+                trailPositions: Array(props.trailLength).fill().map(() => ({x: 0, y: 0})),
+                glowElement: glowElement,
+                pulseIntensity: props.pulseIntensity,
+                label: orb.getAttribute('data-label'),
+                // Store trail particles reference
+                trailParticles: orb.querySelectorAll('.trail-particle'),
+                lastUpdateTime: 0
             };
         });
         
+        // Create quantum connections between adjacent orbs
+        if (props.quantumConnectionsEnabled) {
+            this.quantumConnections = [];
+            for (let i = 0; i < this.orbData.length; i++) {
+                const j = (i + 1) % this.orbData.length;
+                const connection = this.createQuantumConnection(this.orbData[i], this.orbData[j]);
+                this.quantumConnections.push(connection);
+            }
+        }
+        
         // Position orbs initially
         this.updateOrbPositions();
+    },
+    
+    updateOrbPositions() {
+        const centerX = this.sizes.width / 2;
+        const centerY = this.sizes.height / 2;
+        
+        // Mouse influence variables
+        const mouseInfluenceRadius = Math.min(this.sizes.width, this.sizes.height) * 0.5;
+        const mouseInfluenceStrength = 0.2;
+        
+        // Determine if black hole should attract orbs
+        const blackHoleAttraction = this.blackHoleParams && this.blackHoleParams.intensity > 0.5;
+        const attractionFactor = blackHoleAttraction ? 0.05 * this.blackHoleParams.intensity : 0;
+        
+        // Update each orb
+        this.orbData.forEach((orb, index) => {
+            // Current time for smooth animations
+            const time = performance.now() * 0.001;
+            
+            // Baseline orbit motion - slightly elliptical
+            const ellipseFactor = 1 + 0.1 * Math.sin(time * 0.2 + index);
+            const orbitSpeed = orb.speed * (1 + 0.2 * Math.sin(time * 0.1 + index * 0.7));
+            
+            orb.angle += orbitSpeed;
+            
+            // Base orbital position
+            let newX = centerX + Math.cos(orb.angle) * orb.radius * ellipseFactor;
+            let newY = centerY + Math.sin(orb.angle) * orb.radius;
+            
+            // Add subtle wobble
+            newX += Math.sin(time * 1.5 + index * 2) * 5;
+            newY += Math.cos(time * 1.2 + index * 2) * 5;
+            
+            // Calculate mouse influence
+            let mouseInfluence = { x: 0, y: 0 };
+            
+            if (this.mouse.x && this.mouse.y) {
+                const dx = this.mouse.x - newX;
+                const dy = this.mouse.y - newY;
+                const distToMouse = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distToMouse < mouseInfluenceRadius) {
+                    // Normalize and apply inverse square falloff
+                    const influenceFactor = mouseInfluenceStrength * (1 - distToMouse / mouseInfluenceRadius);
+                    
+                    if (orb.hoverState) {
+                        // Attraction when hovering
+                        mouseInfluence.x = dx * influenceFactor * 3;
+                        mouseInfluence.y = dy * influenceFactor * 3;
+                    } else {
+                        // Slight repulsion otherwise
+                        mouseInfluence.x = -dx * influenceFactor * 0.3;
+                        mouseInfluence.y = -dy * influenceFactor * 0.3;
+                    }
+                }
+            }
+            
+            // Apply black hole attraction
+            if (blackHoleAttraction) {
+                const distToCenterX = centerX - newX;
+                const distToCenterY = centerY - newY;
+                const distToCenter = Math.sqrt(distToCenterX * distToCenterX + distToCenterY * distToCenterY);
+                
+                // Stronger pull as orbs get closer to center
+                const gravityFactor = attractionFactor * (1 - Math.min(1, distToCenter / (orb.radius * 0.5)));
+                
+                newX += distToCenterX * gravityFactor;
+                newY += distToCenterY * gravityFactor;
+            }
+            
+            // Apply spring physics
+            const targetX = newX + mouseInfluence.x;
+            const targetY = newY + mouseInfluence.y;
+            
+            // Spring constants
+            const springFactor = 0.15;
+            const dampingFactor = 0.85;
+            
+            // Apply spring force
+            orb.vx += (targetX - orb.x) * springFactor;
+            orb.vy += (targetY - orb.y) * springFactor;
+            
+            // Apply damping to prevent oscillation
+            orb.vx *= dampingFactor;
+            orb.vy *= dampingFactor;
+            
+            // Update position
+            orb.x += orb.vx;
+            orb.y += orb.vy;
+            
+            // Update trail positions (newest position first)
+            if (orb.trailPositions.length > 0) {
+                // Only update trails every few frames for performance
+                if (time - orb.lastUpdateTime > 0.03) {
+                    orb.trailPositions.unshift({ x: orb.x, y: orb.y });
+                    orb.trailPositions.pop();
+                    orb.lastUpdateTime = time;
+                }
+            }
+            
+            // Apply pulsation effect
+            const pulseScale = 1 + 0.1 * Math.sin(time * 3 + orb.pulsePhase) * orb.pulseIntensity;
+            
+            // Set orb position and scale with transform for better performance
+            orb.element.style.transform = `translate(${orb.x}px, ${orb.y}px) scale(${pulseScale})`;
+            
+            // Set glow intensity
+            if (orb.glowElement) {
+                const glowOpacity = 0.6 + 0.4 * Math.sin(time * 2 + orb.pulsePhase) * orb.pulseIntensity;
+                const glowScale = 1.4 + 0.3 * Math.sin(time * 1.5 + orb.pulsePhase) * orb.pulseIntensity;
+                orb.glowElement.style.opacity = glowOpacity;
+                orb.glowElement.style.transform = `scale(${glowScale})`;
+            }
+            
+            // Update trail particles
+            if (orb.trailParticles && orb.trailParticles.length > 0) {
+                for (let i = 0; i < orb.trailParticles.length; i++) {
+                    if (orb.trailPositions[i]) {
+                        const xOffset = orb.trailPositions[i].x - orb.x;
+                        const yOffset = orb.trailPositions[i].y - orb.y;
+                        orb.trailParticles[i].style.transform = `translate(${xOffset}px, ${yOffset}px)`;
+                    }
+                }
+            }
+        });
+        
+        // Update quantum connections
+        if (this.quantumConnections) {
+            this.quantumConnections.forEach(connection => {
+                if (typeof connection.update === 'function') {
+                    connection.update();
+                }
+            });
+        }
     },
     
     initEventListeners() {
@@ -2933,39 +3420,129 @@ const app = {
     },
     
     createQuantumConnection(orb1, orb2) {
+        // Create the connection element
         const connection = document.createElement('div');
         connection.className = 'quantum-connection';
         document.getElementById('ui').appendChild(connection);
         
-        // Animate connection line
-        const duration = 2000;
-        const startTime = Date.now();
+        // Assign unique animation delay for varied effect
+        const animationDelay = Math.random() * 3;
+        connection.style.animationDelay = `${animationDelay}s`;
         
+        // Add quantum particles along the connection
+        const particleCount = Math.floor(Math.random() * 3) + 2; // 2-4 particles
+        const particles = [];
+        
+        for (let i = 0; i < particleCount; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'quantum-particle';
+            particle.style.width = '4px';
+            particle.style.height = '4px';
+            particle.style.position = 'absolute';
+            particle.style.borderRadius = '50%';
+            particle.style.background = 'white';
+            particle.style.filter = 'blur(1px)';
+            particle.style.boxShadow = '0 0 5px rgba(255,255,255,0.8)';
+            particle.style.zIndex = '6';
+            particle.style.pointerEvents = 'none';
+            particle.style.transition = 'opacity 0.3s ease';
+            
+            // Random starting position along the connection
+            particle.progress = Math.random();
+            particle.speed = 0.03 + Math.random() * 0.05;
+            particle.direction = Math.random() > 0.5 ? 1 : -1;
+            particle.opacity = 0.7 + Math.random() * 0.3;
+            particle.style.opacity = particle.opacity;
+            
+            document.getElementById('ui').appendChild(particle);
+            particles.push(particle);
+        }
+        
+        // Update function to position the connection between orbs
         const updateLine = () => {
             const dx = orb2.x - orb1.x;
             const dy = orb2.y - orb1.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
             const angle = Math.atan2(dy, dx);
             
-            // Calculate elapsed percentage
-            const elapsed = Date.now() - startTime;
-            const progress = Math.min(elapsed / duration, 1);
+            // Adjust connection endpoints to start/end at orb edges
+            const orbRadius = 30; // Half of orb size
+            const padding = 2;
             
-            // Animate line length
-            connection.style.width = `${distance * progress}px`;
-            connection.style.left = `${orb1.x}px`;
-            connection.style.top = `${orb1.y}px`;
+            // Calculate adjusted start and end points
+            const startX = orb1.x + Math.cos(angle) * (orbRadius + padding);
+            const startY = orb1.y + Math.sin(angle) * (orbRadius + padding);
+            const endX = orb2.x - Math.cos(angle) * (orbRadius + padding);
+            const endY = orb2.y - Math.sin(angle) * (orbRadius + padding);
+            
+            // Adjusted distance
+            const adjustedDx = endX - startX;
+            const adjustedDy = endY - startY;
+            const adjustedDistance = Math.sqrt(adjustedDx * adjustedDx + adjustedDy * adjustedDy);
+            
+            // Position and rotate the connection
+            connection.style.width = `${adjustedDistance}px`;
+            connection.style.left = `${startX}px`;
+            connection.style.top = `${startY}px`;
             connection.style.transform = `rotate(${angle}rad)`;
-            connection.style.opacity = Math.sin(progress * Math.PI);
             
-            if (progress < 1) {
-                requestAnimationFrame(updateLine);
-            } else {
-                connection.remove();
-            }
+            // Vary connection opacity based on distance
+            const maxDistance = Math.min(window.innerWidth, window.innerHeight) * 0.4;
+            const opacity = Math.max(0.2, 1 - distance / maxDistance);
+            connection.style.opacity = opacity;
+            
+            // Add slight thickness variation based on time
+            const now = performance.now() * 0.001;
+            const thickness = 1 + 0.5 * Math.sin(now * 2 + orb1.pulsePhase);
+            connection.style.height = `${thickness}px`;
+            
+            // Update particles
+            particles.forEach((particle, index) => {
+                // Update particle position along the connection
+                particle.progress += particle.speed * particle.direction;
+                
+                // Reverse direction at ends
+                if (particle.progress > 1) {
+                    particle.progress = 1;
+                    particle.direction = -1;
+                } else if (particle.progress < 0) {
+                    particle.progress = 0;
+                    particle.direction = 1;
+                }
+                
+                // Calculate position
+                const pX = startX + adjustedDx * particle.progress;
+                const pY = startY + adjustedDy * particle.progress;
+                
+                // Position particle
+                particle.style.left = `${pX - 2}px`; // Center the particle (2px is half width)
+                particle.style.top = `${pY - 2}px`;  // Center the particle (2px is half height)
+                
+                // Make particle pulse
+                const pulseOpacity = particle.opacity * (0.7 + 0.3 * Math.sin(now * 3 + index));
+                particle.style.opacity = opacity * pulseOpacity;
+                
+                // Vary size slightly
+                const pulseSize = 3 + Math.sin(now * 2 + index * 10) * 1;
+                particle.style.width = `${pulseSize}px`;
+                particle.style.height = `${pulseSize}px`;
+            });
         };
         
+        // Initial update
         updateLine();
+        
+        // Return the connection object with an update method
+        return {
+            element: connection,
+            update: updateLine,
+            destroy: () => {
+                document.getElementById('ui').removeChild(connection);
+                particles.forEach(particle => {
+                    document.getElementById('ui').removeChild(particle);
+                });
+            }
+        };
     },
     
     createDataFragment(text) {
@@ -3243,7 +3820,9 @@ const app = {
                 
                 void main() {
                     vColor = color;
-                    vProgress = float(gl_VertexID) / 100.0;
+                    // Use position-based value instead of gl_VertexID for WebGL compatibility
+                    float vertexPosition = fract(sin(dot(position.xyz, vec3(12.9898, 78.233, 45.543))) * 43758.5453);
+                    vProgress = vertexPosition;
                     
                     // Add motion along the stream
                     float waveOffset = sin(vProgress * 10.0 + time * 5.0) * 0.2;
@@ -3327,69 +3906,6 @@ const app = {
         
         // Quadratic Bezier curve formula
         return (1 - t) * (1 - t) * start + 2 * (1 - t) * t * controlPoint + t * t * end;
-    },
-    
-    updateOrbPositions() {
-        this.orbData.forEach(orb => {
-            // Update orbit angle with individual speeds
-            orb.angle = orb.baseAngle + this.clock.getElapsedTime() * orb.speed;
-            
-            // Calculate base position
-            orb.targetX = this.sizes.width / 2 + Math.cos(orb.angle) * orb.radius;
-            orb.targetY = this.sizes.height / 2 + Math.sin(orb.angle) * orb.radius;
-            
-            // Apply mouse repulsion
-            if (this.mouse.x !== 0 || this.mouse.y !== 0) {
-                const mouseWorldX = this.mouse.x * this.sizes.width / 2;
-                const mouseWorldY = this.mouse.y * this.sizes.height / 2;
-                
-                const dx = orb.targetX - (this.sizes.width / 2 + mouseWorldX);
-                const dy = orb.targetY - (this.sizes.height / 2 + mouseWorldY);
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                
-                if (distance < 200) {
-                    const force = 100 / Math.max(distance, 50);
-                    orb.vx += dx * 0.001 * force;
-                    orb.vy += dy * 0.001 * force;
-                }
-            }
-            
-            // Apply velocities with damping
-            orb.vx *= 0.95;
-            orb.vy *= 0.95;
-            
-            // Smooth transitioning to target position
-            orb.x = THREE.MathUtils.lerp(orb.x, orb.targetX + orb.vx * 30, 0.1);
-            orb.y = THREE.MathUtils.lerp(orb.y, orb.targetY + orb.vy * 30, 0.1);
-            
-            // Quantum effects - subtle random jumps
-            if (Math.random() < 0.001) {
-                orb.x += (Math.random() - 0.5) * 20;
-                orb.y += (Math.random() - 0.5) * 20;
-            }
-            
-            // Update DOM element
-            const size = orb.hoverState ? 70 : 60;
-            orb.element.style.left = `${orb.x - size/2}px`;
-            orb.element.style.top = `${orb.y - size/2}px`;
-            orb.element.style.width = `${size}px`;
-            orb.element.style.height = `${size}px`;
-            
-            // Update visual state
-            if (orb.entangled) {
-                orb.element.style.background = 'radial-gradient(circle, #00ffff 20%, #ff00ff 80%)';
-                orb.element.style.boxShadow = '0 0 20px #00ffff';
-            } else if (orb.hoverState) {
-                orb.element.style.background = 'radial-gradient(circle, #ffffff 20%, #ff00ff 80%)';
-                orb.element.style.boxShadow = '0 0 15px #ff00ff';
-            } else {
-                // Pulsing effect
-                const pulse = Math.sin(this.clock.getElapsedTime() * 3 + orb.pulsePhase) * 0.1 + 0.9;
-                orb.element.style.background = 'radial-gradient(circle, #fff 20%, #ff00ff 80%)';
-                orb.element.style.boxShadow = `0 0 ${10 * pulse}px #ff00ff`;
-                orb.element.style.transform = `scale(${pulse})`;
-            }
-        });
     },
     
     updateFragments() {
@@ -4372,7 +4888,7 @@ const app = {
                     vec3 dirToBlackHole = blackHolePosition - position;
                     float distToBlackHole = length(dirToBlackHole);
                     
-                    // Normalize direction
+                    // Normalize for direction calculations
                     vec3 dirNorm = normalize(dirToBlackHole);
                     
                     // Calculate gravitational lensing effect
@@ -5135,8 +5651,9 @@ const app = {
                     // Set point size, scaled by device pixel ratio
                     gl_PointSize = size * pixelRatio * (300.0 / -mvPosition.z);
                     
-                    // Apply slight twinkle effect
-                    gl_PointSize *= 0.9 + 0.2 * sin(time * 2.0 + gl_VertexID * 0.1);
+                    // Apply slight twinkle effect - using a technique compatible with all WebGL versions
+                    float twinkleFactor = fract(sin(dot(lensedPosition.xyz, vec3(12.9898, 78.233, 45.543))) * 43758.5453);
+                    gl_PointSize *= 0.9 + 0.2 * sin(time * 2.0 + twinkleFactor * 10.0);
                     
                     // Set position
                     gl_Position = projectionMatrix * mvPosition;
