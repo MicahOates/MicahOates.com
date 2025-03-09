@@ -1,183 +1,291 @@
 import * as THREE from 'three';
 
+/**
+ * Performance monitor to track FPS and adjust quality settings dynamically
+ */
 export class PerformanceMonitor {
     constructor(app) {
         this.app = app;
-        this.frameCount = 0;
+        
+        // Keep track of FPS
+        this.fpsValues = [];
         this.frameTimes = [];
-        this.lastTime = 0;
-        this.monitoring = false;
-    }
-    
-    /**
-     * Detect device performance and set configuration
-     * Returns a promise that resolves when performance detection is complete
-     */
-    detectPerformance() {
-        return new Promise((resolve) => {
-            // Check if device is mobile
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            
-            // Set initial performance level based on device type
-            if (isMobile) {
-                this.app.config.devicePerformance = 'low';
-                resolve();
-                return;
+        this.maxFrameValues = 60; // Store the last 60 frames (about 1 second)
+        this.previousTime = 0;
+        
+        // Performance thresholds
+        this.thresholds = {
+            highFPS: 55,  // Above this is considered high performance
+            mediumFPS: 40, // Between this and highFPS is medium performance
+            lowFPS: 25     // Below this is considered low performance
+        };
+        
+        // Current quality level (low, medium, high)
+        this.currentQuality = this.app.config.devicePerformance;
+        
+        // Adjustment settings
+        this.settings = {
+            enabled: true,
+            measurementInterval: 2000, // Check performance every 2 seconds
+            stabilizationTime: 5000,   // Wait 5 seconds before first adjustment
+            adjustmentCooldown: 10000  // Wait 10 seconds between adjustments
+        };
+        
+        // Performance monitoring state
+        this.state = {
+            isMonitoring: false,
+            lastAdjustmentTime: 0,
+            startTime: 0,
+            memoryUsage: {
+                jsHeapSizeLimit: 0,
+                totalJSHeapSize: 0,
+                usedJSHeapSize: 0
             }
-            
-            // Start measuring FPS for desktop devices
-            this.monitoring = true;
-            this.frameCount = 0;
-            this.frameTimes = [];
-            this.lastTime = performance.now();
-            
-            // Create a test scene with particles to stress the GPU
-            this.createTestScene();
-            
-            // Check FPS after 1 second
-            setTimeout(() => {
-                this.monitoring = false;
-                this.determinePerformanceLevel();
-                
-                // Clean up test scene
-                this.cleanupTestScene();
-                
-                resolve();
-            }, 1000);
-            
-            // Start animation loop for testing
-            this.runTestLoop();
-        });
+        };
+        
+        // Available performance-related settings to adjust
+        this.qualitySettings = {
+            low: {
+                particleDensity: 0.3,
+                bloom: {
+                    strength: 0.6,
+                    radius: 0.5,
+                    threshold: 0.3
+                },
+                filmGrain: {
+                    intensity: 0.02
+                },
+                colorCorrection: {
+                    noiseIntensity: 0.01,
+                    chromaticAberration: 0.001
+                }
+            },
+            medium: {
+                particleDensity: 0.7,
+                bloom: {
+                    strength: 0.8,
+                    radius: 0.7,
+                    threshold: 0.2
+                },
+                filmGrain: {
+                    intensity: 0.03
+                },
+                colorCorrection: {
+                    noiseIntensity: 0.02,
+                    chromaticAberration: 0.002
+                }
+            },
+            high: {
+                particleDensity: 1.0,
+                bloom: {
+                    strength: 1.0,
+                    radius: 0.75,
+                    threshold: 0.15
+                },
+                filmGrain: {
+                    intensity: 0.05
+                },
+                colorCorrection: {
+                    noiseIntensity: 0.03,
+                    chromaticAberration: 0.003
+                }
+            }
+        };
     }
     
     /**
-     * Create a simple test scene with many particles
+     * Start performance monitoring
      */
-    createTestScene() {
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.z = 50;
-        
-        const renderer = new THREE.WebGLRenderer({ alpha: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        
-        // Hide test canvas but keep it in the DOM for accurate performance measurement
-        renderer.domElement.style.position = 'absolute';
-        renderer.domElement.style.opacity = '0';
-        renderer.domElement.style.pointerEvents = 'none';
-        document.body.appendChild(renderer.domElement);
-        
-        // Create a large number of particles to stress the GPU
-        const particleCount = 10000;
-        const particles = new THREE.BufferGeometry();
-        const positions = new Float32Array(particleCount * 3);
-        
-        for (let i = 0; i < particleCount; i++) {
-            positions[i * 3] = (Math.random() - 0.5) * 100;
-            positions[i * 3 + 1] = (Math.random() - 0.5) * 100;
-            positions[i * 3 + 2] = (Math.random() - 0.5) * 100;
-        }
-        
-        particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        
-        const material = new THREE.PointsMaterial({ size: 1, color: 0xffffff });
-        const particleSystem = new THREE.Points(particles, material);
-        scene.add(particleSystem);
-        
-        // Store references for cleanup
-        this.testScene = scene;
-        this.testCamera = camera;
-        this.testRenderer = renderer;
-        this.testParticles = particleSystem;
-    }
-    
-    /**
-     * Run test animation loop
-     */
-    runTestLoop() {
-        if (!this.monitoring) return;
-        
-        const time = performance.now();
-        const delta = time - this.lastTime;
-        this.lastTime = time;
-        
-        if (delta > 0) {
-            this.frameTimes.push(delta);
-            this.frameCount++;
-        }
-        
-        // Rotate particles to ensure GPU load
-        if (this.testParticles) {
-            this.testParticles.rotation.x += 0.01;
-            this.testParticles.rotation.y += 0.01;
-        }
-        
-        // Render test scene
-        if (this.testRenderer && this.testScene && this.testCamera) {
-            this.testRenderer.render(this.testScene, this.testCamera);
-        }
-        
-        // Continue loop if still monitoring
-        if (this.monitoring) {
-            requestAnimationFrame(() => this.runTestLoop());
+    start() {
+        if (this.settings.enabled) {
+            this.state.isMonitoring = true;
+            this.state.startTime = performance.now();
+            this.state.lastAdjustmentTime = performance.now();
+            
+            // Start the measurement interval
+            this.monitoringInterval = setInterval(() => {
+                this.checkPerformance();
+            }, this.settings.measurementInterval);
+            
+            console.log('Performance monitoring started');
         }
     }
     
     /**
-     * Determine performance level based on measured FPS
+     * Stop performance monitoring
      */
-    determinePerformanceLevel() {
-        // Calculate average FPS
-        const totalTime = this.frameTimes.reduce((sum, time) => sum + time, 0);
-        const avgFrameTime = totalTime / this.frameTimes.length;
-        const fps = 1000 / avgFrameTime;
+    stop() {
+        this.state.isMonitoring = false;
+        if (this.monitoringInterval) {
+            clearInterval(this.monitoringInterval);
+        }
+        console.log('Performance monitoring stopped');
+    }
+    
+    /**
+     * Update FPS counter
+     */
+    updateFPS() {
+        if (!this.state.isMonitoring) return;
         
-        // Determine performance level based on FPS
-        if (fps < 30) {
-            this.app.config.devicePerformance = 'low';
-        } else if (fps < 50) {
-            this.app.config.devicePerformance = 'medium';
+        const currentTime = performance.now();
+        const elapsed = currentTime - this.previousTime;
+        
+        if (this.previousTime > 0) {
+            // Calculate FPS
+            const currentFPS = 1000 / elapsed;
+            
+            // Store frame time
+            this.frameTimes.push(elapsed);
+            this.fpsValues.push(currentFPS);
+            
+            // Keep only the last n values
+            if (this.fpsValues.length > this.maxFrameValues) {
+                this.fpsValues.shift();
+                this.frameTimes.shift();
+            }
+        }
+        
+        this.previousTime = currentTime;
+    }
+    
+    /**
+     * Get average FPS
+     */
+    getAverageFPS() {
+        if (this.fpsValues.length === 0) return 60; // Default to 60 if no data yet
+        
+        const sum = this.fpsValues.reduce((a, b) => a + b, 0);
+        return sum / this.fpsValues.length;
+    }
+    
+    /**
+     * Get average frame time in milliseconds
+     */
+    getAverageFrameTime() {
+        if (this.frameTimes.length === 0) return 16.66; // Default to 16.66ms (60 FPS) if no data yet
+        
+        const sum = this.frameTimes.reduce((a, b) => a + b, 0);
+        return sum / this.frameTimes.length;
+    }
+    
+    /**
+     * Get memory usage if available
+     */
+    getMemoryUsage() {
+        // Check if performance.memory is available (Chrome only)
+        if (performance && performance.memory) {
+            this.state.memoryUsage = {
+                jsHeapSizeLimit: performance.memory.jsHeapSizeLimit,
+                totalJSHeapSize: performance.memory.totalJSHeapSize,
+                usedJSHeapSize: performance.memory.usedJSHeapSize
+            };
+        }
+        
+        return this.state.memoryUsage;
+    }
+    
+    /**
+     * Check if performance is good enough for given quality level
+     */
+    checkPerformance() {
+        // Get current performance metrics
+        const avgFPS = this.getAverageFPS();
+        const avgFrameTime = this.getAverageFrameTime();
+        const memoryUsage = this.getMemoryUsage();
+        
+        console.log(`Performance: ${avgFPS.toFixed(1)} FPS, ${avgFrameTime.toFixed(1)}ms/frame`);
+        
+        // Wait for stabilization period before first adjustment
+        const currentTime = performance.now();
+        if (currentTime - this.state.startTime < this.settings.stabilizationTime) {
+            return;
+        }
+        
+        // Check if we should adjust quality based on cooldown
+        if (currentTime - this.state.lastAdjustmentTime < this.settings.adjustmentCooldown) {
+            return;
+        }
+        
+        // Determine if we need to adjust quality
+        let newQuality = this.currentQuality;
+        
+        if (avgFPS < this.thresholds.lowFPS) {
+            // Performance is poor, lower quality
+            newQuality = 'low';
+        } else if (avgFPS < this.thresholds.mediumFPS) {
+            // Performance is okay, use medium quality
+            newQuality = 'medium';
+        } else if (avgFPS > this.thresholds.highFPS) {
+            // Performance is good, can use high quality
+            newQuality = 'high';
+        }
+        
+        // Only change if needed
+        if (newQuality !== this.currentQuality) {
+            this.adjustQuality(newQuality);
+            this.state.lastAdjustmentTime = currentTime;
+        }
+    }
+    
+    /**
+     * Adjust quality based on detected performance level
+     */
+    adjustQuality(qualityLevel) {
+        console.log(`Adjusting quality to: ${qualityLevel}`);
+        
+        // Update app config
+        this.app.config.devicePerformance = qualityLevel;
+        this.currentQuality = qualityLevel;
+        
+        // Get settings for this quality level
+        const settings = this.qualitySettings[qualityLevel];
+        
+        // Apply post-processing settings
+        if (this.app.postProcessingManager) {
+            this.app.postProcessingManager.setBloomParams(settings.bloom);
+            this.app.postProcessingManager.setFilmGrain(settings.filmGrain);
+            this.app.postProcessingManager.setColorCorrection(settings.colorCorrection);
+        }
+        
+        // Don't recreate particle systems, as that would be disruptive
+        // Just adjust their properties
+        // For a real implementation, we would need custom methods for each
+        // component to adjust without full recreation
+        
+        // Event for other systems
+        this.onQualityChanged(qualityLevel);
+    }
+    
+    /**
+     * Quality change event for other systems to listen to
+     */
+    onQualityChanged(newQualityLevel) {
+        // This would typically dispatch an event or call quality adjustment
+        // methods on various components
+        console.log(`Quality level changed to ${newQualityLevel}`);
+        
+        // Here we could implement custom behavior for different components
+        // based on quality level
+    }
+    
+    /**
+     * Manually set quality level
+     */
+    setQualityLevel(level) {
+        if (['low', 'medium', 'high'].includes(level)) {
+            this.adjustQuality(level);
         } else {
-            this.app.config.devicePerformance = 'high';
+            console.error(`Invalid quality level: ${level}`);
         }
-        
-        console.log(`Performance detection - FPS: ${fps.toFixed(1)}, Level: ${this.app.config.devicePerformance}`);
     }
     
     /**
-     * Clean up test scene
+     * Cleanup resources
      */
-    cleanupTestScene() {
-        if (this.testRenderer) {
-            if (this.testRenderer.domElement && this.testRenderer.domElement.parentNode) {
-                this.testRenderer.domElement.parentNode.removeChild(this.testRenderer.domElement);
-            }
-            this.testRenderer.dispose();
-        }
-        
-        // Clean up geometries and materials
-        if (this.testParticles) {
-            if (this.testParticles.geometry) {
-                this.testParticles.geometry.dispose();
-            }
-            if (this.testParticles.material) {
-                this.testParticles.material.dispose();
-            }
-        }
-        
-        this.testScene = null;
-        this.testCamera = null;
-        this.testRenderer = null;
-        this.testParticles = null;
-    }
-    
-    /**
-     * Monitor ongoing performance during regular use
-     */
-    monitorPerformance() {
-        // We'll implement this later if needed
-        // This would monitor performance during regular use and 
-        // adjust settings dynamically if performance drops
+    dispose() {
+        this.stop();
+        this.fpsValues = [];
+        this.frameTimes = [];
     }
 } 

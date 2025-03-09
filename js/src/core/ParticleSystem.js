@@ -1,10 +1,28 @@
 import * as THREE from 'three';
+import {
+    backgroundParticleVertexShader,
+    backgroundParticleFragmentShader,
+    quantumFluctuationVertexShader,
+    quantumFluctuationFragmentShader,
+    dataStreamVertexShader,
+    dataStreamFragmentShader,
+    nebulaVertexShader,
+    nebulaFragmentShader
+} from '../shaders/ParticleShader.js';
 
 export class ParticleSystem {
     constructor(app) {
         this.app = app;
         this.particles = null;
         this.particleActivity = 0.0;
+        this.activeEffects = [];
+        
+        // Effect settings
+        this.settings = {
+            baseParticleCount: 2000,
+            maxDataStreamParticles: 200,
+            maxEffects: 20
+        };
     }
     
     /**
@@ -56,61 +74,8 @@ export class ParticleSystem {
                 activityLevel: { value: 0.0 },
                 color: { value: new THREE.Color(this.app.getThemeColor('primary')) }
             },
-            vertexShader: `
-                attribute float size;
-                attribute float opacity;
-                
-                uniform float time;
-                uniform float pixelRatio;
-                uniform float activityLevel;
-                
-                varying float vOpacity;
-                
-                void main() {
-                    vOpacity = opacity;
-                    
-                    // Get particle position
-                    vec3 pos = position;
-                    
-                    // Add subtle drift in a quantum-like motion
-                    float drift = 0.2 + activityLevel * 0.4;
-                    pos.x += sin(time * 0.2 + pos.z) * drift;
-                    pos.y += cos(time * 0.3 + pos.x) * drift;
-                    pos.z += sin(time * 0.1 + pos.y) * drift;
-                    
-                    // Convert to view space
-                    vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-                    
-                    // Scale size by distance
-                    gl_PointSize = size * pixelRatio * (20.0 / -mvPosition.z);
-                    
-                    // Increase size with activity level
-                    gl_PointSize *= 1.0 + activityLevel * 0.5;
-                    
-                    // Set position
-                    gl_Position = projectionMatrix * mvPosition;
-                }
-            `,
-            fragmentShader: `
-                uniform vec3 color;
-                uniform float activityLevel;
-                
-                varying float vOpacity;
-                
-                void main() {
-                    // Create soft circular particle
-                    vec2 center = gl_PointCoord - 0.5;
-                    float dist = length(center * 2.0);
-                    float alpha = (1.0 - smoothstep(0.5, 1.0, dist)) * vOpacity;
-                    
-                    // Boost alpha with activity level
-                    alpha *= 1.0 + activityLevel * 0.3;
-                    
-                    // Set final color with alpha
-                    if (dist > 1.0) discard;
-                    gl_FragColor = vec4(color, alpha);
-                }
-            `,
+            vertexShader: backgroundParticleVertexShader,
+            fragmentShader: backgroundParticleFragmentShader,
             transparent: true,
             blending: THREE.AdditiveBlending,
             depthWrite: false
@@ -126,7 +91,7 @@ export class ParticleSystem {
      * Determine optimal particle count based on device performance
      */
     getOptimalParticleCount() {
-        const baseCount = 2000;
+        const baseCount = this.settings.baseParticleCount;
         
         switch (this.app.config.devicePerformance) {
             case 'low':
@@ -164,12 +129,25 @@ export class ParticleSystem {
             this.particleActivity = Math.max(0, this.particleActivity);
             this.particles.userData.shader.uniforms.activityLevel.value = this.particleActivity;
         }
+        
+        // Update active effects and remove completed ones
+        this.activeEffects = this.activeEffects.filter(effect => {
+            if (effect.update) {
+                return effect.update(time);
+            }
+            return true;
+        });
     }
     
     /**
      * Create a quantum particle effect (for interactive events)
      */
     createQuantumFluctuationEffect(position, intensity = 1.0) {
+        // Cap the total number of active effects
+        if (this.activeEffects.length >= this.settings.maxEffects) {
+            return;
+        }
+        
         // Create a small burst of particles
         const particleCount = this.app.config.devicePerformance === 'low' ? 10 : 
                              (this.app.config.devicePerformance === 'medium' ? 20 : 30);
@@ -198,61 +176,12 @@ export class ParticleSystem {
             uniforms: {
                 time: { value: 0 },
                 pixelRatio: { value: window.devicePixelRatio },
-                startTime: { value: time },
+                startTime: { value: this.app.clock.getElapsedTime() },
                 intensity: { value: intensity },
                 color: { value: new THREE.Color(this.app.getThemeColor('primary')) }
             },
-            vertexShader: `
-                attribute float size;
-                
-                uniform float time;
-                uniform float startTime;
-                uniform float pixelRatio;
-                uniform float intensity;
-                
-                varying float vAge;
-                
-                void main() {
-                    // Calculate age of the effect
-                    vAge = (time - startTime) / 2.0; // Life span of 2 seconds
-                    
-                    // Expand particles outward over time
-                    vec3 pos = position;
-                    vec3 dir = normalize(position);
-                    
-                    float expansionDistance = vAge * 5.0;
-                    pos = pos + dir * expansionDistance * intensity;
-                    
-                    // Convert to view space
-                    vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-                    
-                    // Size decreases over lifetime
-                    float sizeMultiplier = max(0.0, 1.0 - vAge);
-                    gl_PointSize = size * pixelRatio * (20.0 / -mvPosition.z) * sizeMultiplier * intensity;
-                    
-                    // Set position
-                    gl_Position = projectionMatrix * mvPosition;
-                }
-            `,
-            fragmentShader: `
-                uniform vec3 color;
-                
-                varying float vAge;
-                
-                void main() {
-                    // Discard if past lifetime
-                    if (vAge >= 1.0) discard;
-                    
-                    // Create soft circular particle that fades out over time
-                    vec2 center = gl_PointCoord - 0.5;
-                    float dist = length(center * 2.0);
-                    float alpha = (1.0 - smoothstep(0.5, 1.0, dist)) * (1.0 - vAge);
-                    
-                    // Set final color with alpha
-                    if (dist > 1.0) discard;
-                    gl_FragColor = vec4(color, alpha);
-                }
-            `,
+            vertexShader: quantumFluctuationVertexShader,
+            fragmentShader: quantumFluctuationFragmentShader,
             transparent: true,
             blending: THREE.AdditiveBlending,
             depthWrite: false
@@ -262,14 +191,193 @@ export class ParticleSystem {
         particles.frustumCulled = false;
         this.app.scene.add(particles);
         
-        // Auto-remove after lifetime
-        setTimeout(() => {
-            this.app.scene.remove(particles);
-            geometry.dispose();
-            material.dispose();
-        }, 2000);
+        // Create effect object with its own update logic
+        const effect = {
+            particles,
+            geometry,
+            material,
+            startTime: this.app.clock.getElapsedTime(),
+            duration: 2.0, // Lifetime in seconds
+            
+            update: (time) => {
+                // Update time uniform
+                material.uniforms.time.value = time;
+                
+                // Check if effect has completed its lifecycle
+                if (time - this.startTime > this.duration) {
+                    // Remove and clean up
+                    this.app.scene.remove(particles);
+                    geometry.dispose();
+                    material.dispose();
+                    return false; // Don't keep in activeEffects
+                }
+                
+                return true; // Keep in activeEffects
+            }
+        };
+        
+        // Add to active effects
+        this.activeEffects.push(effect);
         
         // Increase overall particle activity
         this.increaseParticleActivity(0.3);
+    }
+    
+    /**
+     * Create data stream effect - simulates data flowing to/from the black hole
+     */
+    createDataStreamEffect(origin, target, duration = 3.0, callback = null) {
+        // Cap the total number of active effects
+        if (this.activeEffects.length >= this.settings.maxEffects) {
+            if (callback) callback();
+            return;
+        }
+        
+        // Number of particles based on device performance
+        const particleCount = this.app.config.devicePerformance === 'low' ? 50 : 
+                             (this.app.config.devicePerformance === 'medium' ? 100 : 
+                             this.settings.maxDataStreamParticles);
+        
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+        const sizes = new Float32Array(particleCount);
+        const colors = new Float32Array(particleCount * 3);
+        
+        // Calculate direction vector from origin to target
+        const direction = new THREE.Vector3()
+            .copy(target)
+            .sub(origin)
+            .normalize();
+        
+        // Calculate distance for distributing particles
+        const distance = origin.distanceTo(target);
+        
+        // Color for stream (use theme color)
+        const primaryColor = new THREE.Color(this.app.getThemeColor('primary'));
+        const secondaryColor = new THREE.Color(this.app.getThemeColor('secondary'));
+        
+        // Create particles along the stream path
+        for (let i = 0; i < particleCount; i++) {
+            // Distribute particles along the path with some randomness
+            const progress = Math.random();
+            const pos = new THREE.Vector3()
+                .copy(origin)
+                .add(direction.clone().multiplyScalar(distance * progress));
+            
+            // Add some random offset perpendicular to the path
+            const perpendicularOffset = 0.5;
+            const perpendicular1 = new THREE.Vector3(1, 0, 0);
+            if (Math.abs(direction.dot(perpendicular1)) > 0.9) {
+                perpendicular1.set(0, 1, 0);
+            }
+            const perpendicular2 = new THREE.Vector3().crossVectors(direction, perpendicular1).normalize();
+            perpendicular1.crossVectors(direction, perpendicular2).normalize();
+            
+            pos.add(perpendicular1.multiplyScalar((Math.random() - 0.5) * perpendicularOffset));
+            pos.add(perpendicular2.multiplyScalar((Math.random() - 0.5) * perpendicularOffset));
+            
+            positions[i * 3] = pos.x;
+            positions[i * 3 + 1] = pos.y;
+            positions[i * 3 + 2] = pos.z;
+            
+            // Particle sizes based on position
+            sizes[i] = 0.1 + Math.random() * 0.2;
+            
+            // Gradient color along the stream
+            const colorMix = Math.random();
+            const color = new THREE.Color().lerpColors(primaryColor, secondaryColor, colorMix);
+            colors[i * 3] = color.r;
+            colors[i * 3 + 1] = color.g;
+            colors[i * 3 + 2] = color.b;
+        }
+        
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        
+        // Create shader material
+        const material = new THREE.ShaderMaterial({
+            uniforms: {
+                time: { value: 0 },
+                pixelRatio: { value: window.devicePixelRatio }
+            },
+            vertexShader: dataStreamVertexShader,
+            fragmentShader: dataStreamFragmentShader,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        
+        const stream = new THREE.Points(geometry, material);
+        stream.frustumCulled = false;
+        this.app.scene.add(stream);
+        
+        // Create effect object with update logic
+        const effect = {
+            stream,
+            geometry,
+            material,
+            startTime: this.app.clock.getElapsedTime(),
+            duration,
+            
+            update: (time) => {
+                // Update time uniform
+                material.uniforms.time.value = time;
+                
+                // Calculate progress (0 to 1)
+                const elapsed = time - this.startTime;
+                const progress = Math.min(1.0, elapsed / this.duration);
+                
+                // Check if effect has completed
+                if (progress >= 1.0) {
+                    // Call completion callback
+                    if (callback) callback();
+                    
+                    // Remove and clean up
+                    this.app.scene.remove(stream);
+                    geometry.dispose();
+                    material.dispose();
+                    return false; // Don't keep in activeEffects
+                }
+                
+                return true; // Keep in activeEffects
+            }
+        };
+        
+        // Add to active effects
+        this.activeEffects.push(effect);
+        
+        // Increase particle activity
+        this.increaseParticleActivity(0.4);
+        
+        return effect;
+    }
+    
+    /**
+     * Clean up resources
+     */
+    dispose() {
+        // Clean up background particles
+        if (this.particles) {
+            this.app.scene.remove(this.particles);
+            this.particles.geometry.dispose();
+            this.particles.material.dispose();
+        }
+        
+        // Clean up active effects
+        this.activeEffects.forEach(effect => {
+            if (effect.particles) {
+                this.app.scene.remove(effect.particles);
+                effect.geometry.dispose();
+                effect.material.dispose();
+            }
+            if (effect.stream) {
+                this.app.scene.remove(effect.stream);
+                effect.geometry.dispose();
+                effect.material.dispose();
+            }
+        });
+        
+        this.activeEffects = [];
     }
 } 
