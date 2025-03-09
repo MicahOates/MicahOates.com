@@ -30,7 +30,8 @@ export class PostProcessingManager {
             bloom: true,
             colorCorrection: true,
             filmGrain: true,
-            spaceDistortion: false
+            spaceDistortion: false,
+            gravitationalLensing: true // New effect
         };
         
         // Default effect parameters
@@ -59,6 +60,9 @@ export class PostProcessingManager {
                 mousePosition: new THREE.Vector2(0.5, 0.5)
             }
         };
+        
+        // Advanced effects (will be set externally)
+        this.gravitationalLensing = null;
     }
     
     /**
@@ -219,6 +223,13 @@ export class PostProcessingManager {
     }
     
     /**
+     * Register an external gravitational lensing effect
+     */
+    registerGravitationalLensing(lensingEffect) {
+        this.gravitationalLensing = lensingEffect;
+    }
+    
+    /**
      * Update post-processing effects
      */
     update(time) {
@@ -234,6 +245,71 @@ export class PostProcessingManager {
         if (this.passes.spaceDistortion) {
             this.passes.spaceDistortion.uniforms.time.value = time;
         }
+        
+        // Update gravitational lensing if available
+        if (this.gravitationalLensing && this.effectsEnabled.gravitationalLensing) {
+            this.gravitationalLensing.update(time);
+        }
+    }
+    
+    /**
+     * Override the standard compose method to support custom effects like gravitational lensing
+     */
+    render() {
+        if (!this.composer) return;
+        
+        // Standard EffectComposer implementation with our extensions
+        const passes = this.composer.passes;
+        const renderer = this.app.renderer;
+        const renderTarget1 = this.composer.renderTarget1;
+        const renderTarget2 = this.composer.renderTarget2;
+        const copyPass = this.composer.copyPass;
+        
+        let inputRenderTarget = null;
+        let outputRenderTarget = null;
+        
+        // Save the original render target
+        const originalRenderTarget = renderer.getRenderTarget();
+        
+        // For each pass in our composer
+        for (let i = 0, il = passes.length; i < il; i++) {
+            const pass = passes[i];
+            if (pass.enabled === false) continue;
+            
+            // RenderPasses and ShaderPasses work differently
+            if (pass instanceof RenderPass) {
+                // Render scene to the next render target
+                pass.render(renderer, renderTarget1, renderTarget1);
+                inputRenderTarget = renderTarget1;
+            } else {
+                // Apply the current pass as a shader
+                pass.uniforms['tDiffuse'].value = inputRenderTarget.texture;
+                
+                outputRenderTarget = i === il - 1 ? null : 
+                    (inputRenderTarget === renderTarget1 ? renderTarget2 : renderTarget1);
+                    
+                // If we have a gravitational lensing effect and it's the last pass before output
+                if (this.gravitationalLensing && 
+                    this.effectsEnabled.gravitationalLensing && 
+                    (i === il - 1 || i === il - 2 && passes[il - 1].enabled === false)) {
+                    
+                    // Let the lensing effect process the current render target
+                    this.gravitationalLensing.prepareForRender(inputRenderTarget);
+                    
+                    // Render the lensing effect to the output
+                    this.gravitationalLensing.render(renderer, outputRenderTarget);
+                } else {
+                    // Normal pass rendering
+                    renderer.setRenderTarget(outputRenderTarget);
+                    pass.render(renderer, outputRenderTarget);
+                }
+                
+                inputRenderTarget = outputRenderTarget;
+            }
+        }
+        
+        // Restore the original render target
+        renderer.setRenderTarget(originalRenderTarget);
     }
     
     /**
@@ -266,6 +342,18 @@ export class PostProcessingManager {
     toggleSpaceDistortion(enabled) {
         this.effectsEnabled.spaceDistortion = enabled;
         this.updatePasses();
+    }
+    
+    /**
+     * Toggle gravitational lensing effect
+     */
+    toggleGravitationalLensing(enabled) {
+        this.effectsEnabled.gravitationalLensing = enabled;
+        
+        // Update the actual effect if available
+        if (this.gravitationalLensing) {
+            this.gravitationalLensing.setActive(enabled);
+        }
     }
     
     /**
@@ -377,6 +465,17 @@ export class PostProcessingManager {
     }
     
     /**
+     * Adjust gravitational lensing parameters
+     */
+    setGravitationalLensing(params = {}) {
+        if (!this.gravitationalLensing) return;
+        
+        if (params.lensStrength !== undefined) {
+            this.gravitationalLensing.setLensStrength(params.lensStrength);
+        }
+    }
+    
+    /**
      * Update distortion effect mouse position
      */
     updateDistortionCenter(x, y) {
@@ -437,6 +536,11 @@ export class PostProcessingManager {
             this.composer.passes.forEach(pass => {
                 if (pass.dispose) pass.dispose();
             });
+        }
+        
+        // Clean up gravitational lensing effect
+        if (this.gravitationalLensing) {
+            this.gravitationalLensing.dispose();
         }
     }
 } 

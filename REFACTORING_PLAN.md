@@ -26,7 +26,9 @@ js/
     │   ├── BlackHoleShader.js
     │   ├── PostProcessingShader.js
     │   ├── ParticleShader.js
-    │   └── StarfieldShader.js
+    │   ├── StarfieldShader.js
+    │   ├── GravitationalLensingShader.js
+    │   └── TimeDilationShader.js
     ├── utils/              # Utility functions
     │   └── PerformanceMonitor.js # Performance detection
     └── main.js             # Entry point
@@ -60,6 +62,7 @@ js/
 - [x] Extract shaders to separate files
 - [x] Implement film grain effect
 - [x] Implement space distortion effect
+- [x] Add support for external effects integration
 
 ### ✅ Particle System
 - [x] Implement background particles
@@ -70,15 +73,19 @@ js/
 
 ## Phase 2: Advanced Effects
 
-### Gravitational Lensing Effects
-- [ ] Create separate module for gravitational lensing
-- [ ] Implement star distortion effect
-- [ ] Fix WebGL compatibility issues
-- [ ] Optimize performance
+### ✅ Gravitational Lensing Effects
+- [x] Create separate module for gravitational lensing
+- [x] Implement star distortion effect
+- [x] Implement two-pass rendering for distortion
+- [x] Implement WebGL compatibility fixes
+- [x] Add performance optimizations
 
-### Time Dilation Field
-- [ ] Create separate module for time dilation visualization
-- [ ] Fix WebGL compatibility issues
+### ✅ Time Dilation Field
+- [x] Create separate module for time dilation visualization
+- [x] Implement time dilation field effect
+- [x] Implement particles with time-dilated movement
+- [x] Implement clock visualizations at different distances
+- [x] Add performance-based adaptations
 
 ### Nebula Effect
 - [ ] Create separate module for nebula cloud rendering
@@ -151,17 +158,18 @@ js/
 - ✅ Implemented PostProcessingManager with multiple effects
 - ✅ Implemented ParticleSystem with interactive effects
 - ✅ Implemented SceneManager with camera controls and background
+- ✅ Implemented GravitationalLensing with two-pass rendering approach
+- ✅ Implemented TimeDilation with multiple visualization methods
 - ✅ Created PerformanceMonitor utility for dynamic quality adjustment
 - ✅ Fixed shader compilation errors related to gl_VertexID
 - ✅ Extracted all shaders to separate files
 - ✅ Implemented proper resource cleanup in all components
 - ✅ Created comprehensive main.js entry point
+- ✅ Integrated advanced effects with post-processing pipeline
 
 ## Next Steps
 
-1. Implement advanced effects modules:
-   - Gravitational Lensing
-   - Time Dilation
+1. Implement remaining advanced effect:
    - Enhanced Nebula Effect
 
 2. Implement UI Manager with proper Three.js integration:

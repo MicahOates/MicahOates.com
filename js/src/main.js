@@ -5,6 +5,9 @@ import { SceneManager } from './core/SceneManager.js';
 import { BlackHole } from './core/BlackHole.js';
 import { ParticleSystem } from './core/ParticleSystem.js';
 import { PostProcessingManager } from './core/PostProcessingManager.js';
+import { GravitationalLensing } from './effects/GravitationalLensing.js';
+import { TimeDilation } from './effects/TimeDilation.js';
+import { PerformanceMonitor } from './utils/PerformanceMonitor.js';
 
 /**
  * BlackHoleApp - Main application class that manages the 3D visualization
@@ -23,6 +26,8 @@ class BlackHoleApp {
             accretionDiskRadius: options.accretionDiskRadius || 15,
             enableBloom: options.enableBloom !== undefined ? options.enableBloom : true,
             enableFilmGrain: options.enableFilmGrain !== undefined ? options.enableFilmGrain : true,
+            enableGravitationalLensing: options.enableGravitationalLensing !== undefined ? options.enableGravitationalLensing : true,
+            enableTimeDilation: options.enableTimeDilation !== undefined ? options.enableTimeDilation : true,
             theme: options.theme || {
                 primary: '#8844ff',   // Purple
                 secondary: '#44aaff', // Blue
@@ -43,12 +48,17 @@ class BlackHoleApp {
         
         // Performance monitoring
         this.stats = null;
+        this.performanceMonitor = null;
         
         // Core components
         this.sceneManager = null;
         this.blackHole = null;
         this.particleSystem = null;
         this.postProcessingManager = null;
+        
+        // Advanced effects
+        this.gravitationalLensing = null;
+        this.timeDilation = null;
         
         // Initialize the app
         this.detectPerformance();
@@ -108,7 +118,11 @@ class BlackHoleApp {
         this.initSceneManager();
         this.initBlackHole();
         this.initParticleSystem();
+        this.initAdvancedEffects();
         this.initPostProcessing();
+        
+        // Initialize performance monitor
+        this.initPerformanceMonitor();
         
         // Start animation loop
         this.animate();
@@ -142,6 +156,23 @@ class BlackHoleApp {
     }
     
     /**
+     * Initialize advanced effects
+     */
+    initAdvancedEffects() {
+        // Initialize gravitational lensing if enabled
+        if (this.config.enableGravitationalLensing) {
+            this.gravitationalLensing = new GravitationalLensing(this);
+            this.gravitationalLensing.init();
+        }
+        
+        // Initialize time dilation if enabled
+        if (this.config.enableTimeDilation) {
+            this.timeDilation = new TimeDilation(this);
+            this.timeDilation.init();
+        }
+    }
+    
+    /**
      * Initialize post-processing effects
      */
     initPostProcessing() {
@@ -152,8 +183,22 @@ class BlackHoleApp {
         this.postProcessingManager.toggleBloom(this.config.enableBloom);
         this.postProcessingManager.toggleFilmGrain(this.config.enableFilmGrain);
         
+        // Register gravitational lensing with post-processing manager
+        if (this.gravitationalLensing) {
+            this.postProcessingManager.registerGravitationalLensing(this.gravitationalLensing);
+            this.postProcessingManager.toggleGravitationalLensing(this.config.enableGravitationalLensing);
+        }
+        
         // Set quality based on device performance
         this.postProcessingManager.setQualityLevel();
+    }
+    
+    /**
+     * Initialize performance monitor
+     */
+    initPerformanceMonitor() {
+        this.performanceMonitor = new PerformanceMonitor(this);
+        this.performanceMonitor.start();
     }
     
     /**
@@ -167,6 +212,11 @@ class BlackHoleApp {
         
         // Start FPS measurement
         if (this.stats) this.stats.begin();
+        
+        // Update FPS tracking in performance monitor
+        if (this.performanceMonitor) {
+            this.performanceMonitor.updateFPS();
+        }
         
         // Update components
         this.update();
@@ -196,6 +246,16 @@ class BlackHoleApp {
         if (this.particleSystem) {
             this.particleSystem.update(this.time);
         }
+        
+        // Update gravitational lensing
+        if (this.gravitationalLensing) {
+            this.gravitationalLensing.update(this.time);
+        }
+        
+        // Update time dilation
+        if (this.timeDilation) {
+            this.timeDilation.update(this.time);
+        }
     }
     
     /**
@@ -205,7 +265,7 @@ class BlackHoleApp {
         if (this.postProcessingManager && this.postProcessingManager.composer) {
             // Render with post-processing
             this.postProcessingManager.update(this.time);
-            this.postProcessingManager.composer.render();
+            this.postProcessingManager.render();
         } else if (this.scene && this.camera && this.renderer) {
             // Fallback to standard rendering
             this.renderer.render(this.scene, this.camera);
@@ -239,6 +299,25 @@ class BlackHoleApp {
     }
     
     /**
+     * Toggle time dilation effect
+     */
+    toggleTimeDilation(enabled) {
+        if (this.timeDilation) {
+            this.timeDilation.setActive(enabled);
+            this.config.enableTimeDilation = enabled;
+        }
+    }
+    
+    /**
+     * Set time dilation visualization type
+     */
+    setTimeDilationVisualization(type) {
+        if (this.timeDilation) {
+            this.timeDilation.setVisualizationType(type);
+        }
+    }
+    
+    /**
      * Clean up resources
      */
     dispose() {
@@ -247,8 +326,13 @@ class BlackHoleApp {
         
         // Dispose of components
         if (this.postProcessingManager) this.postProcessingManager.dispose();
+        if (this.gravitationalLensing) this.gravitationalLensing.dispose();
+        if (this.timeDilation) this.timeDilation.dispose();
         if (this.particleSystem) this.particleSystem.dispose();
         if (this.sceneManager) this.sceneManager.dispose();
+        
+        // Stop performance monitoring
+        if (this.performanceMonitor) this.performanceMonitor.dispose();
         
         // Remove stats if enabled
         if (this.stats && this.stats.dom.parentElement) {
@@ -266,6 +350,8 @@ function initApp() {
         canvas: document.getElementById('blackhole-canvas'),
         autoRotate: true,
         showFPS: false,
+        enableGravitationalLensing: true,
+        enableTimeDilation: true,
         theme: {
             primary: '#8844ff',
             secondary: '#44aaff',
