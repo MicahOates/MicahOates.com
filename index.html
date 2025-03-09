@@ -1,20 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Into the Void</title>
-  <link rel="stylesheet" href="styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Micah's Singularity</title>
+    <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-  <div class="space">
-    <div class="black-hole"></div>
-    <div class="portals">
-      <a href="about.html" class="portal" style="--i: 1;">About</a>
-      <a href="projects.html" class="portal" style="--i: 2;">Projects</a>
-      <a href="contact.html" class="portal" style="--i: 3;">Contact</a>
+    <div id="container">
+        <canvas id="scene"></canvas>
+        <div id="ui">
+            <input type="text" id="data-input" placeholder="Feed the Singularity...">
+            <div id="orbs">
+                <a href="#about" class="orb" data-label="About">About</a>
+                <a href="#contact" class="orb" data-label="Contact">Contact</a>
+                <a href="#projects" class="orb" data-label="Projects">Projects</a>
+                <a href="#blog" class="orb" data-label="Blog">Blog</a>
+            </div>
+        </div>
     </div>
-  </div>
-  <script src="script.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r156/three.min.js"></script>
+    <script src="js/main.js"></script>
 </body>
 </html>

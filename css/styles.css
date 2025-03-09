@@ -1,0 +1,83 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: #000;
+    overflow: hidden;
+    height: 100vh;
+    font-family: 'Arial', sans-serif;
+}
+
+#container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+#scene {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+#ui {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none; /* Allows WebGL interaction */
+}
+
+#data-input {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 300px;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.7);
+    border: 1px solid #ff00ff;
+    color: #fff;
+    font-size: 16px;
+    pointer-events: auto;
+}
+
+#data-input:focus {
+    outline: none;
+    border-color: #00ffff;
+}
+
+#orbs {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.orb {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    background: radial-gradient(circle, #fff 20%, #ff00ff 80%);
+    border-radius: 50%;
+    text-align: center;
+    line-height: 60px;
+    color: #000;
+    text-decoration: none;
+    font-size: 16px;
+    pointer-events: auto;
+    transition: transform 0.1s, background 0.3s;
+    box-shadow: 0 0 10px #ff00ff;
+}
+
+.orb:hover {
+    background: radial-gradient(circle, #00ffff 20%, #ff00ff 80%);
+    transform: scale(1.1);
+}
