@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { PostProcessingManager } from './effects/PostProcessingManager.js';
+import { PostProcessingManager } from './core/PostProcessingManager.js';
 import { SceneManager } from './scene/SceneManager.js';
-import { BlackHoleEffect } from './effects/BlackHoleEffect.js';
+import { GravitationalLensing } from './effects/GravitationalLensing.js';
 import { NebulaEffect } from './effects/NebulaEffect.js';
 
 // Import UI systems
@@ -33,7 +33,7 @@ export class App {
         this.physicsController = null;
         
         // Effects
-        this.blackHoleEffect = null;
+        this.gravitationalLensingEffect = null;
         this.nebulaEffect = null;
         
         // UI systems
@@ -251,8 +251,8 @@ export class App {
                     this.sceneManager.updateAssets();
                 }
                 
-                if (this.blackHoleEffect && this.blackHoleEffect.updateAssets) {
-                    this.blackHoleEffect.updateAssets();
+                if (this.gravitationalLensingEffect && this.gravitationalLensingEffect.updateAssets) {
+                    this.gravitationalLensingEffect.updateAssets();
                 }
                 
                 if (this.nebulaEffect && this.nebulaEffect.updateAssets) {
@@ -516,8 +516,8 @@ export class App {
             this.sceneManager.setQualityLevel(this.config.devicePerformance);
         }
         
-        if (this.blackHoleEffect && this.blackHoleEffect.setQualityLevel) {
-            this.blackHoleEffect.setQualityLevel(this.config.devicePerformance);
+        if (this.gravitationalLensingEffect && this.gravitationalLensingEffect.setQualityLevel) {
+            this.gravitationalLensingEffect.setQualityLevel(this.config.devicePerformance);
         }
         
         if (this.nebulaEffect && this.nebulaEffect.setQualityLevel) {
@@ -708,9 +708,9 @@ export class App {
      * Initialize visual effects
      */
     initEffects() {
-        // Create black hole effect
-        this.blackHoleEffect = new BlackHoleEffect(this);
-        this.blackHoleEffect.init();
+        // Create gravitational lensing effect
+        this.gravitationalLensingEffect = new GravitationalLensing(this);
+        this.gravitationalLensingEffect.init();
         
         // Create nebula effect
         this.nebulaEffect = new NebulaEffect(this);
@@ -828,8 +828,8 @@ export class App {
             this.sceneManager.update(time);
         }
         
-        if (this.blackHoleEffect) {
-            this.blackHoleEffect.update(time);
+        if (this.gravitationalLensingEffect) {
+            this.gravitationalLensingEffect.update(time);
         }
         
         if (this.nebulaEffect) {
@@ -957,9 +957,9 @@ export class App {
         }
         
         // Dispose effects
-        if (this.blackHoleEffect) {
-            console.log('Disposing black hole effect');
-            this.blackHoleEffect.dispose();
+        if (this.gravitationalLensingEffect) {
+            console.log('Disposing gravitational lensing effect');
+            this.gravitationalLensingEffect.dispose();
         }
         
         if (this.nebulaEffect) {
@@ -991,7 +991,7 @@ export class App {
         this.clock = null;
         this.sceneManager = null;
         this.postProcessingManager = null;
-        this.blackHoleEffect = null;
+        this.gravitationalLensingEffect = null;
         this.nebulaEffect = null;
         this.uiManager = null;
         this.uiController = null;
@@ -1067,8 +1067,8 @@ export class App {
         }
         
         // Apply to effects if available
-        if (this.blackHoleEffect && this.blackHoleEffect.updateColors) {
-            this.blackHoleEffect.updateColors(colors);
+        if (this.gravitationalLensingEffect && this.gravitationalLensingEffect.updateColors) {
+            this.gravitationalLensingEffect.updateColors(colors);
         }
         
         if (this.nebulaEffect && this.nebulaEffect.updateColors) {
@@ -1180,8 +1180,8 @@ export class App {
      */
     handlePhysicsUpdate(data) {
         // Update visualization components with new particle positions
-        if (this.blackHoleEffect && this.blackHoleEffect.updateParticles) {
-            this.blackHoleEffect.updateParticles(data.particles);
+        if (this.gravitationalLensingEffect && this.gravitationalLensingEffect.updateParticles) {
+            this.gravitationalLensingEffect.updateParticles(data.particles);
         }
         
         // Update UI if needed
