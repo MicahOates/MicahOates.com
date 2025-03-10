@@ -9,6 +9,9 @@ import { GravitationalLensing } from './effects/GravitationalLensing.js';
 import { TimeDilation } from './effects/TimeDilation.js';
 import { NebulaEffect } from './effects/NebulaEffect.js';
 import { PerformanceMonitor } from './utils/PerformanceMonitor.js';
+import { TouchInteractionManager } from './utils/TouchInteractionManager.js';
+import { DebugPanel } from './utils/DebugPanel.js';
+import { AccessibilityManager } from './utils/AccessibilityManager.js';
 
 /**
  * BlackHoleApp - Main application class that manages the 3D visualization
@@ -30,6 +33,7 @@ class BlackHoleApp {
             enableGravitationalLensing: options.enableGravitationalLensing !== undefined ? options.enableGravitationalLensing : true,
             enableTimeDilation: options.enableTimeDilation !== undefined ? options.enableTimeDilation : true,
             enableNebula: options.enableNebula !== undefined ? options.enableNebula : true,
+            debug: options.debug !== undefined ? options.debug : false, // Debug mode flag
             theme: options.theme || {
                 primary: '#8844ff',   // Purple
                 secondary: '#44aaff', // Blue
@@ -127,6 +131,15 @@ class BlackHoleApp {
         // Initialize performance monitor
         this.initPerformanceMonitor();
         
+        // Initialize enhanced mobile touch controls
+        this.initTouchInteraction();
+        
+        // Initialize debug panel (hidden by default)
+        this.initDebugPanel();
+        
+        // Initialize accessibility features
+        this.initAccessibility();
+        
         // Start animation loop
         this.animate();
         
@@ -211,10 +224,39 @@ class BlackHoleApp {
     }
     
     /**
+     * Initialize enhanced touch interaction for mobile devices
+     */
+    initTouchInteraction() {
+        this.touchInteraction = new TouchInteractionManager(this);
+    }
+    
+    /**
+     * Initialize debug panel
+     */
+    initDebugPanel() {
+        // Only enable debug panel in development or when debug flag is set
+        const isDebugMode = this.config.debug || 
+            window.location.hostname === 'localhost' || 
+            window.location.hostname === '127.0.0.1' ||
+            window.location.search.includes('debug=true');
+        
+        this.debugPanel = new DebugPanel(this, {
+            visible: isDebugMode
+        });
+    }
+    
+    /**
+     * Initialize accessibility features
+     */
+    initAccessibility() {
+        this.accessibilityManager = new AccessibilityManager(this);
+    }
+    
+    /**
      * Animation loop
      */
     animate() {
-        requestAnimationFrame(this.animate.bind(this));
+        this.animationFrameId = requestAnimationFrame(this.animate.bind(this));
         
         // Update time
         this.time = this.clock.getElapsedTime();
@@ -354,24 +396,38 @@ class BlackHoleApp {
      * Clean up resources
      */
     dispose() {
+        // Stop animation loop
+        if (this.animationFrameId) {
+            cancelAnimationFrame(this.animationFrameId);
+            this.animationFrameId = null;
+        }
+        
         // Remove event listeners
         window.removeEventListener('resize', this.onResize);
         
-        // Dispose of components
+        // Dispose core systems
+        if (this.sceneManager) this.sceneManager.dispose();
+        if (this.blackHole) this.blackHole.dispose();
+        if (this.particleSystem) this.particleSystem.dispose();
         if (this.postProcessingManager) this.postProcessingManager.dispose();
+        
+        // Dispose effects
         if (this.gravitationalLensing) this.gravitationalLensing.dispose();
         if (this.timeDilation) this.timeDilation.dispose();
         if (this.nebulaEffect) this.nebulaEffect.dispose();
-        if (this.particleSystem) this.particleSystem.dispose();
-        if (this.sceneManager) this.sceneManager.dispose();
         
-        // Stop performance monitoring
+        // Dispose utility managers
         if (this.performanceMonitor) this.performanceMonitor.dispose();
+        if (this.touchInteraction) this.touchInteraction.dispose();
+        if (this.debugPanel) this.debugPanel.dispose();
+        if (this.accessibilityManager) this.accessibilityManager.dispose();
         
         // Remove stats if enabled
         if (this.stats && this.stats.dom.parentElement) {
             this.stats.dom.parentElement.removeChild(this.stats.dom);
         }
+        
+        console.log('BlackHoleApp disposed');
     }
 }
 
