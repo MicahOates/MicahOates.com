@@ -494,6 +494,29 @@ class BlackHoleApp {
             
             this._renderErrorCount++;
             
+            // After a couple of errors, try to reinitialize the post-processing
+            if (this._renderErrorCount === 3) {
+                console.warn('Attempting to reinitialize post-processing due to errors');
+                try {
+                    this.postProcessingManager = new PostProcessingManager(this);
+                    this.postProcessingManager.init();
+                    
+                    // Apply default configuration
+                    this.postProcessingManager.toggleBloom(this.config.enableBloom);
+                    this.postProcessingManager.toggleFilmGrain(this.config.enableFilmGrain);
+                    
+                    if (this.gravitationalLensing) {
+                        this.postProcessingManager.registerGravitationalLensing(this.gravitationalLensing);
+                        this.postProcessingManager.toggleGravitationalLensing(this.config.enableGravitationalLensing);
+                    }
+                    
+                    // Set quality based on device performance
+                    this.postProcessingManager.setQualityLevel();
+                } catch (reinitError) {
+                    console.error('Failed to reinitialize post-processing:', reinitError);
+                }
+            }
+            
             // After multiple errors, disable post-processing permanently for this session
             if (this._renderErrorCount > 5) {
                 console.warn('Disabling post-processing due to recurring errors');
