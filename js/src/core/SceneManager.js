@@ -760,4 +760,97 @@ export class SceneManager {
             material.uniforms.colorBackground.value = new THREE.Color(colors.background);
         }
     }
+    
+    /**
+     * Handle WebGL context loss
+     */
+    onContextLost() {
+        console.log('SceneManager: Context lost');
+        
+        // Clear references that will need to be recreated
+        this.renderer = null;
+    }
+    
+    /**
+     * Handle WebGL context restoration
+     * called after the renderer has been recreated
+     */
+    onContextRestored() {
+        console.log('SceneManager: Context restored');
+        
+        // Get the new renderer from the app
+        this.renderer = this.app.renderer;
+        
+        // Recreate materials or textures if needed
+        this.recreateResources();
+    }
+    
+    /**
+     * Recreate resources after context restoration
+     */
+    recreateResources() {
+        // Recreate any materials or textures that need to be restored
+        
+        // Starfield materials might need to be recreated
+        if (this.starfield) {
+            this.recreateStarfieldMaterials();
+        }
+        
+        // Nebula background might need to be recreated
+        if (this.nebulaBackground) {
+            this.recreateNebulaBackgroundMaterials();
+        }
+    }
+    
+    /**
+     * Recreate starfield materials after context loss
+     */
+    recreateStarfieldMaterials() {
+        if (!this.starfield || !this.starfield.geometry) return;
+        
+        // Recreate starfield materials with the same properties
+        const newMaterial = new THREE.PointsMaterial({
+            size: this.starfield.material.size,
+            sizeAttenuation: this.starfield.material.sizeAttenuation,
+            transparent: true,
+            vertexColors: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        
+        // Replace the old material
+        this.starfield.material.dispose();
+        this.starfield.material = newMaterial;
+        
+        // Track the new material if resource tracking is available
+        if (this.app.track) {
+            this.app.track(newMaterial, 'starfield-material');
+        }
+    }
+    
+    /**
+     * Recreate nebula background materials after context loss
+     */
+    recreateNebulaBackgroundMaterials() {
+        if (!this.nebulaBackground || !this.nebulaBackground.material) return;
+        
+        // Recreate nebula shader material
+        const newMaterial = new THREE.ShaderMaterial({
+            vertexShader: this.nebulaBackground.material.vertexShader,
+            fragmentShader: this.nebulaBackground.material.fragmentShader,
+            uniforms: this.nebulaBackground.material.uniforms,
+            side: THREE.BackSide,
+            transparent: true,
+            depthWrite: false
+        });
+        
+        // Replace the old material
+        this.nebulaBackground.material.dispose();
+        this.nebulaBackground.material = newMaterial;
+        
+        // Track the new material if resource tracking is available
+        if (this.app.track) {
+            this.app.track(newMaterial, 'nebula-background-material');
+        }
+    }
 } 

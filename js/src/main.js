@@ -12,6 +12,9 @@ import { PerformanceMonitor } from './utils/PerformanceMonitor.js';
 import { TouchInteractionManager } from './utils/TouchInteractionManager.js';
 import { DebugPanel } from './utils/DebugPanel.js';
 import { AccessibilityManager } from './utils/AccessibilityManager.js';
+import { WebGLDetector } from './utils/WebGLDetector.js';
+import { ResourceTracker } from './utils/ResourceTracker.js';
+import { WebGLContextManager } from './utils/WebGLContextManager.js';
 
 /**
  * BlackHoleApp - Main application class that manages the 3D visualization
@@ -42,25 +45,32 @@ class BlackHoleApp {
             }
         };
         
-        // Viewport size
+        // Setup
+        this.clock = new THREE.Clock();
+        this.scene = null;
+        this.camera = null;
+        this.renderer = null;
         this.sizes = {
             width: window.innerWidth,
             height: window.innerHeight
         };
-        
-        // Time and clock
-        this.clock = new THREE.Clock();
         this.time = 0;
-        
-        // Performance monitoring
         this.stats = null;
-        this.performanceMonitor = null;
+        this.isPaused = false; // Pause flag for context loss
         
         // Core components
         this.sceneManager = null;
         this.blackHole = null;
         this.particleSystem = null;
         this.postProcessingManager = null;
+        
+        // Utility managers
+        this.performanceMonitor = null;
+        this.resources = null;
+        this.contextManager = null;
+        this.touchInteraction = null;
+        this.debugPanel = null;
+        this.accessibilityManager = null;
         
         // Advanced effects
         this.gravitationalLensing = null;
@@ -115,11 +125,20 @@ class BlackHoleApp {
      * Initialize the application
      */
     init() {
+        // Check for WebGL support before proceeding
+        this.checkWebGLSupport();
+        
         // Create fps counter if enabled
         if (this.config.showFPS) {
             this.stats = new Stats();
             document.body.appendChild(this.stats.dom);
         }
+        
+        // Initialize resource tracker
+        this.initResourceTracker();
+        
+        // Initialize WebGL context manager
+        this.initWebGLContextManager();
         
         // Initialize core systems
         this.initSceneManager();
@@ -253,10 +272,139 @@ class BlackHoleApp {
     }
     
     /**
+     * Check WebGL support
+     */
+    checkWebGLSupport() {
+        const result = WebGLDetector.isWebGLSupported(true);
+        
+        if (!result.supported) {
+            // Show error element when WebGL is not supported
+            const errorElement = WebGLDetector.createErrorElement(result);
+            document.getElementById('container').appendChild(errorElement);
+            
+            // Throw error to stop initialization
+            throw new Error('WebGL not supported: ' + (result.errorMessage || 'Unknown error'));
+        }
+        
+        // Store WebGL capabilities for later use
+        this.webglCapabilities = result;
+        
+        // Show warnings if there are any performance concerns
+        if (result.warnings && result.warnings.length > 0) {
+            const warningElement = WebGLDetector.createWarningElement(result.warnings);
+            if (warningElement) {
+                document.body.appendChild(warningElement);
+            }
+            
+            // Adjust quality settings based on warnings
+            if (result.warnings.some(w => w.includes('older') || w.includes('Mobile'))) {
+                this.config.devicePerformance = 'low';
+                console.log('Reducing quality settings due to WebGL capability warnings');
+            }
+        }
+        
+        // Log WebGL capabilities
+        console.log('WebGL Capabilities:', {
+            renderer: result.renderer,
+            version: result.version,
+            webgl2: result.webgl2,
+            maxTextureSize: result.maxTextureSize
+        });
+    }
+    
+    /**
+     * Initialize the resource tracker
+     */
+    initResourceTracker() {
+        this.resources = new ResourceTracker();
+        
+        // Enable debug mode in development
+        if (this.config.debug) {
+            this.resources.setDebugMode(true);
+        }
+    }
+    
+    /**
+     * Initialize WebGL context manager
+     */
+    initWebGLContextManager() {
+        this.contextManager = new WebGLContextManager(this);
+        
+        // Handle context loss/restoration
+        this.onWebGLContextLost = () => {
+            console.warn('Application: WebGL context lost');
+            
+            // Pause animations and interactivity
+            this.isPaused = true;
+            
+            // Notify other components if needed
+            if (this.sceneManager) {
+                this.sceneManager.onContextLost();
+            }
+        };
+        
+        this.onWebGLContextRestored = () => {
+            console.log('Application: WebGL context restored');
+            
+            // Recreate renderer and resources
+            this.recreateRenderer();
+            
+            // Resume animations
+            this.isPaused = false;
+        };
+    }
+    
+    /**
+     * Recreate the renderer after context loss
+     */
+    recreateRenderer() {
+        // Only proceed if we have a scene manager
+        if (!this.sceneManager) return;
+        
+        console.log('Recreating renderer and resources');
+        
+        try {
+            // Recreate the renderer
+            this.sceneManager.createRenderer();
+            
+            // Set the renderer in the context manager
+            if (this.contextManager) {
+                this.contextManager.setRenderer(this.renderer);
+            }
+            
+            // Notify components to reinitialize resources
+            if (this.blackHole) {
+                this.blackHole.onContextRestored();
+            }
+            
+            if (this.particleSystem) {
+                this.particleSystem.onContextRestored();
+            }
+            
+            if (this.postProcessingManager) {
+                this.postProcessingManager.onContextRestored();
+            }
+            
+            // Resize to ensure correct dimensions
+            this.onResize();
+            
+            console.log('Renderer and resources recreated successfully');
+        } catch (error) {
+            console.error('Failed to recreate renderer:', error);
+            
+            // Show a reload message if recovery fails
+            this.showFallbackContent('Graphics context could not be restored. Please refresh the page.');
+        }
+    }
+    
+    /**
      * Animation loop
      */
     animate() {
         this.animationFrameId = requestAnimationFrame(this.animate.bind(this));
+        
+        // Skip updates if paused (context lost)
+        if (this.isPaused) return;
         
         // Update time
         this.time = this.clock.getElapsedTime();
@@ -393,6 +541,66 @@ class BlackHoleApp {
     }
     
     /**
+     * Show fallback content when WebGL fails
+     * @param {string} message - Error message to display
+     */
+    showFallbackContent(message) {
+        // Create fallback container
+        const fallback = document.createElement('div');
+        fallback.className = 'webgl-error';
+        fallback.style.position = 'absolute';
+        fallback.style.top = '0';
+        fallback.style.left = '0';
+        fallback.style.width = '100%';
+        fallback.style.height = '100%';
+        fallback.style.display = 'flex';
+        fallback.style.flexDirection = 'column';
+        fallback.style.alignItems = 'center';
+        fallback.style.justifyContent = 'center';
+        fallback.style.backgroundColor = '#0a0a14';
+        fallback.style.color = '#ffffff';
+        fallback.style.padding = '2rem';
+        fallback.style.textAlign = 'center';
+        fallback.style.zIndex = '1000';
+        
+        // Add message
+        const messageEl = document.createElement('p');
+        messageEl.textContent = message;
+        fallback.appendChild(messageEl);
+        
+        // Add reload button
+        const reloadBtn = document.createElement('button');
+        reloadBtn.textContent = 'Refresh Page';
+        reloadBtn.style.marginTop = '1rem';
+        reloadBtn.style.padding = '0.5rem 1rem';
+        reloadBtn.style.backgroundColor = '#44aaff';
+        reloadBtn.style.border = 'none';
+        reloadBtn.style.borderRadius = '4px';
+        reloadBtn.style.color = 'white';
+        reloadBtn.style.cursor = 'pointer';
+        reloadBtn.addEventListener('click', () => window.location.reload());
+        fallback.appendChild(reloadBtn);
+        
+        // Add to container
+        const container = document.getElementById('container');
+        if (container) {
+            container.appendChild(fallback);
+        } else {
+            document.body.appendChild(fallback);
+        }
+    }
+    
+    /**
+     * Track a resource with the ResourceTracker
+     * @param {Object} resource - Resource to track
+     * @param {string} name - Optional name for debugging
+     * @returns {Object} - The tracked resource
+     */
+    track(resource, name = '') {
+        return this.resources ? this.resources.track(resource, name) : resource;
+    }
+    
+    /**
      * Clean up resources
      */
     dispose() {
@@ -404,6 +612,17 @@ class BlackHoleApp {
         
         // Remove event listeners
         window.removeEventListener('resize', this.onResize);
+        
+        // Dispose WebGL context manager
+        if (this.contextManager) {
+            this.contextManager.dispose();
+        }
+        
+        // Use ResourceTracker to dispose of Three.js resources
+        if (this.resources) {
+            const count = this.resources.dispose();
+            console.log(`Disposed ${count} tracked resources`);
+        }
         
         // Dispose core systems
         if (this.sceneManager) this.sceneManager.dispose();
