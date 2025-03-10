@@ -469,69 +469,119 @@ export class PostProcessingManager {
     }
     
     /**
-     * Adjust bloom parameters
+     * Set bloom parameters
      */
     setBloomParams(params = {}) {
         if (!this.passes.bloom) return;
         
-        if (params.strength !== undefined) this.passes.bloom.strength = params.strength;
-        if (params.radius !== undefined) this.passes.bloom.radius = params.radius;
-        if (params.threshold !== undefined) this.passes.bloom.threshold = params.threshold;
+        if (params.strength !== undefined) {
+            this.effectParams.bloom.strength = params.strength;
+            this.passes.bloom.strength = params.strength;
+        }
         
-        // Update stored parameters
-        Object.assign(this.effectParams.bloom, params);
+        if (params.radius !== undefined) {
+            this.effectParams.bloom.radius = params.radius;
+            this.passes.bloom.radius = params.radius;
+        }
+        
+        if (params.threshold !== undefined) {
+            this.effectParams.bloom.threshold = params.threshold;
+            this.passes.bloom.threshold = params.threshold;
+        }
     }
     
     /**
-     * Adjust color correction parameters
+     * Set color correction parameters
      */
     setColorCorrection(params = {}) {
-        if (!this.passes.colorCorrection) return;
+        if (!this.passes.colorCorrection || 
+            !this.passes.colorCorrection.uniforms) return;
         
         const uniforms = this.passes.colorCorrection.uniforms;
         
-        if (params.brightness !== undefined) uniforms.brightness.value = params.brightness;
-        if (params.contrast !== undefined) uniforms.contrast.value = params.contrast;
-        if (params.saturation !== undefined) uniforms.saturation.value = params.saturation;
-        if (params.hue !== undefined) uniforms.hue.value = params.hue;
-        if (params.vignetteIntensity !== undefined) uniforms.vignetteIntensity.value = params.vignetteIntensity;
-        if (params.vignetteSize !== undefined) uniforms.vignetteSize.value = params.vignetteSize;
-        if (params.noiseIntensity !== undefined) uniforms.noiseIntensity.value = params.noiseIntensity;
-        if (params.chromaticAberration !== undefined) uniforms.chromaticAberration.value = params.chromaticAberration;
+        if (params.brightness !== undefined) {
+            this.effectParams.colorCorrection.brightness = params.brightness;
+            uniforms.brightness.value = params.brightness;
+        }
         
-        // Update stored parameters
-        Object.assign(this.effectParams.colorCorrection, params);
+        if (params.contrast !== undefined) {
+            this.effectParams.colorCorrection.contrast = params.contrast;
+            uniforms.contrast.value = params.contrast;
+        }
+        
+        if (params.saturation !== undefined) {
+            this.effectParams.colorCorrection.saturation = params.saturation;
+            uniforms.saturation.value = params.saturation;
+        }
+        
+        if (params.hue !== undefined) {
+            this.effectParams.colorCorrection.hue = params.hue;
+            uniforms.hue.value = params.hue;
+        }
+        
+        if (params.vignetteIntensity !== undefined) {
+            this.effectParams.colorCorrection.vignetteIntensity = params.vignetteIntensity;
+            if (uniforms.vignetteIntensity) {
+                uniforms.vignetteIntensity.value = params.vignetteIntensity;
+            }
+        }
+        
+        if (params.vignetteSize !== undefined) {
+            this.effectParams.colorCorrection.vignetteSize = params.vignetteSize;
+            if (uniforms.vignetteSize) {
+                uniforms.vignetteSize.value = params.vignetteSize;
+            }
+        }
+        
+        if (params.noiseIntensity !== undefined) {
+            this.effectParams.colorCorrection.noiseIntensity = params.noiseIntensity;
+            if (uniforms.noiseIntensity) {
+                uniforms.noiseIntensity.value = params.noiseIntensity;
+            }
+        }
+        
+        if (params.chromaticAberration !== undefined) {
+            this.effectParams.colorCorrection.chromaticAberration = params.chromaticAberration;
+            if (uniforms.chromaticAberration) {
+                uniforms.chromaticAberration.value = params.chromaticAberration;
+            }
+        }
     }
     
     /**
-     * Adjust film grain parameters
+     * Set film grain parameters
      */
     setFilmGrain(params = {}) {
-        if (!this.passes.filmGrain) return;
+        if (!this.passes.filmGrain || 
+            !this.passes.filmGrain.uniforms) return;
         
-        const uniforms = this.passes.filmGrain.uniforms;
+        if (params.intensity !== undefined) {
+            this.effectParams.filmGrain.intensity = params.intensity;
+            this.passes.filmGrain.uniforms.grainIntensity.value = params.intensity;
+        }
         
-        if (params.intensity !== undefined) uniforms.grainIntensity.value = params.intensity;
-        if (params.size !== undefined) uniforms.grainSize.value = params.size;
-        
-        // Update stored parameters
-        Object.assign(this.effectParams.filmGrain, params);
+        if (params.size !== undefined) {
+            this.effectParams.filmGrain.size = params.size;
+            this.passes.filmGrain.uniforms.grainSize.value = params.size;
+        }
     }
     
     /**
-     * Adjust space distortion parameters
+     * Set space distortion parameters
      */
     setSpaceDistortion(params = {}) {
-        if (!this.passes.spaceDistortion) return;
+        if (!this.passes.spaceDistortion || 
+            !this.passes.spaceDistortion.uniforms) return;
         
-        const uniforms = this.passes.spaceDistortion.uniforms;
+        if (params.strength !== undefined) {
+            this.effectParams.spaceDistortion.strength = params.strength;
+            this.passes.spaceDistortion.uniforms.distortionStrength.value = params.strength;
+        }
         
-        if (params.strength !== undefined) uniforms.distortionStrength.value = params.strength;
-        if (params.mousePosition !== undefined) uniforms.mousePosition.value.copy(params.mousePosition);
-        
-        // Update stored parameters
-        if (params.strength !== undefined) this.effectParams.spaceDistortion.strength = params.strength;
-        if (params.mousePosition !== undefined) this.effectParams.spaceDistortion.mousePosition.copy(params.mousePosition);
+        if (params.mousePosition) {
+            this.effectParams.spaceDistortion.mousePosition.copy(params.mousePosition);
+            this.passes.spaceDistortion.uniforms.mousePosition.value.copy(params.mousePosition);
+        }
     }
     
     /**
