@@ -69,25 +69,39 @@ export class PostProcessingManager {
      * Initialize post-processing effects
      */
     init() {
-        this.composer = new EffectComposer(this.app.renderer);
-        
-        // Add standard render pass
-        this.setupRenderPass();
-        
-        // Add bloom pass for glow effects
-        this.setupBloom();
-        
-        // Add custom color correction pass
-        this.setupColorCorrection();
-        
-        // Add film grain
-        this.setupFilmGrain();
-        
-        // Setup space distortion effect (disabled by default)
-        this.setupSpaceDistortion();
-        
-        // Store reference in the app
-        this.app.composer = this.composer;
+        try {
+            if (!this.app.renderer) {
+                console.error('Cannot initialize post-processing: Renderer not available');
+                return;
+            }
+
+            this.composer = new EffectComposer(this.app.renderer);
+            
+            // Add standard render pass
+            this.setupRenderPass();
+            
+            // Add bloom pass for glow effects
+            this.setupBloom();
+            
+            // Add custom color correction pass
+            this.setupColorCorrection();
+            
+            // Add film grain
+            this.setupFilmGrain();
+            
+            // Setup space distortion effect (disabled by default)
+            this.setupSpaceDistortion();
+            
+            // Validate that all passes are properly initialized
+            this.validatePasses();
+            
+            // Store reference in the app
+            this.app.composer = this.composer;
+        } catch (error) {
+            console.error('Failed to initialize post-processing:', error);
+            // Disable post-processing on error
+            this.composer = null;
+        }
     }
     
     /**
@@ -274,7 +288,7 @@ export class PostProcessingManager {
         // For each pass in our composer
         for (let i = 0, il = passes.length; i < il; i++) {
             const pass = passes[i];
-            if (pass.enabled === false) continue;
+            if (!pass || pass.enabled === false) continue;
             
             // RenderPasses and ShaderPasses work differently
             if (pass instanceof RenderPass) {
@@ -282,6 +296,15 @@ export class PostProcessingManager {
                 pass.render(renderer, renderTarget1, renderTarget1);
                 inputRenderTarget = renderTarget1;
             } else {
+                // Safety check: ensure the pass has the required uniforms before proceeding
+                if (!pass.uniforms || !pass.uniforms['tDiffuse'] || !inputRenderTarget) {
+                    console.warn('Missing required resources for post-processing pass:', 
+                        { pass: pass.constructor.name, hasUniforms: !!pass.uniforms, 
+                          hasTDiffuse: pass.uniforms ? !!pass.uniforms['tDiffuse'] : false,
+                          hasInputTarget: !!inputRenderTarget });
+                    continue;
+                }
+                
                 // Apply the current pass as a shader
                 pass.uniforms['tDiffuse'].value = inputRenderTarget.texture;
                 
@@ -541,6 +564,69 @@ export class PostProcessingManager {
         // Clean up gravitational lensing effect
         if (this.gravitationalLensing) {
             this.gravitationalLensing.dispose();
+        }
+    }
+    
+    /**
+     * Validates that all passes are properly initialized
+     */
+    validatePasses() {
+        if (!this.composer || !this.composer.passes) return;
+        
+        for (let i = 0; i < this.composer.passes.length; i++) {
+            const pass = this.composer.passes[i];
+            
+            // Skip RenderPass as it doesn't need tDiffuse
+            if (pass instanceof RenderPass) continue;
+            
+            // Check for required uniforms in shader passes
+            if (!pass.uniforms || !pass.uniforms['tDiffuse']) {
+                console.warn(`Pass ${i} (${pass.constructor.name}) is missing required uniforms. Removing it.`);
+                // Remove invalid passes
+                this.composer.passes.splice(i, 1);
+                i--; // Adjust index after removal
+            }
+        }
+    }
+    
+    /**
+     * Handle WebGL context restoration
+     */
+    onContextRestored() {
+        console.log('Reinitializing post-processing after context restoration');
+        
+        // Store current configuration
+        const enabledEffects = { ...this.effectsEnabled };
+        const effectParameters = { 
+            bloom: { ...this.effectParams.bloom },
+            colorCorrection: { ...this.effectParams.colorCorrection },
+            filmGrain: { ...this.effectParams.filmGrain },
+            spaceDistortion: { ...this.effectParams.spaceDistortion }
+        };
+        
+        // Clear the composer and passes
+        this.composer = null;
+        
+        // Recreate with previous configuration
+        this.init();
+        
+        // Restore configuration if init was successful
+        if (this.composer) {
+            // Restore enabled effects
+            this.effectsEnabled = enabledEffects;
+            
+            // Restore effect parameters
+            this.setBloomParams(effectParameters.bloom);
+            this.setColorCorrection(effectParameters.colorCorrection);
+            this.setFilmGrain(effectParameters.filmGrain);
+            this.setSpaceDistortion(effectParameters.spaceDistortion);
+            
+            // Update pass order
+            this.updatePasses();
+            
+            // Resize to current dimensions
+            const { width, height } = this.app.sizes;
+            this.resize(width, height);
         }
     }
 } 

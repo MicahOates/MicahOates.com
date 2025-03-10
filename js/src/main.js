@@ -466,13 +466,39 @@ class BlackHoleApp {
      * Render the scene
      */
     render() {
-        if (this.postProcessingManager && this.postProcessingManager.composer) {
-            // Render with post-processing
-            this.postProcessingManager.update(this.time);
-            this.postProcessingManager.render();
-        } else if (this.scene && this.camera && this.renderer) {
-            // Fallback to standard rendering
-            this.renderer.render(this.scene, this.camera);
+        try {
+            if (this.postProcessingManager && this.postProcessingManager.composer) {
+                // Render with post-processing
+                this.postProcessingManager.update(this.time);
+                this.postProcessingManager.render();
+            } else if (this.scene && this.camera && this.renderer) {
+                // Fallback to standard rendering
+                this.renderer.render(this.scene, this.camera);
+            }
+        } catch (error) {
+            console.error('Error during rendering:', error);
+            
+            // Fallback to standard rendering on error
+            if (this.scene && this.camera && this.renderer) {
+                try {
+                    this.renderer.render(this.scene, this.camera);
+                } catch (fallbackError) {
+                    console.error('Failed to use fallback rendering:', fallbackError);
+                }
+            }
+            
+            // Disable post-processing on recurring errors
+            if (this._renderErrorCount === undefined) {
+                this._renderErrorCount = 0;
+            }
+            
+            this._renderErrorCount++;
+            
+            // After multiple errors, disable post-processing permanently for this session
+            if (this._renderErrorCount > 5) {
+                console.warn('Disabling post-processing due to recurring errors');
+                this.postProcessingManager = null;
+            }
         }
     }
     
