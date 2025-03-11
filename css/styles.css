@@ -1942,3 +1942,43 @@ body.light-mode .highlight-frame-dragging {
         font-size: 18px;
     }
 }
+
+#right-click-hint {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.6);
+    color: white;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.9rem;
+    padding: 8px 15px;
+    border-radius: 20px;
+    border: 1px solid rgba(136, 68, 255, 0.6);
+    pointer-events: none;
+    opacity: 0.8;
+    transition: opacity 0.5s ease;
+    z-index: 100;
+    text-align: center;
+    backdrop-filter: blur(5px);
+    box-shadow: 0 0 15px rgba(136, 68, 255, 0.3);
+    animation: pulse 2s infinite alternate;
+}
+
+/* Add a subtle animation to draw attention */
+@keyframes pulse {
+    0% {
+        opacity: 0.6;
+        transform: translateX(-50%) scale(0.98);
+    }
+    100% {
+        opacity: 0.9;
+        transform: translateX(-50%) scale(1.02);
+    }
+}
+
+/* Hide the hint after 10 seconds */
+body.hint-hidden #right-click-hint {
+    opacity: 0;
+    pointer-events: none;
+}

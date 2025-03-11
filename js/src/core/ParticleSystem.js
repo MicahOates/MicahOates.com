@@ -436,6 +436,87 @@ export class ParticleSystem {
     }
     
     /**
+     * Create particles at mouse position
+     * @param {number} mouseX - Normalized mouse X position (-1 to 1)
+     * @param {number} mouseY - Normalized mouse Y position (-1 to 1)
+     * @param {string} text - Optional text to use for particle count
+     */
+    createParticlesAtMouse(mouseX, mouseY, text = "stardust") {
+        try {
+            console.log("Creating particles at mouse position:", mouseX, mouseY);
+            
+            // Skip if too many effects already active
+            if (this.activeEffects.length >= this.settings.maxEffects) {
+                console.log("Too many active effects, skipping particle creation");
+                return;
+            }
+            
+            // Get black hole position (assumed to be at the center)
+            const blackHolePosition = new THREE.Vector3(0, 0, 0);
+            
+            // Create a ray from the camera through the mouse position
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2(mouseX, mouseY);
+            
+            if (!this.app.camera) {
+                console.error("Camera is not initialized");
+                return;
+            }
+            
+            raycaster.setFromCamera(mouse, this.app.camera);
+            
+            // Get start position - a point along the ray
+            const startPosition = new THREE.Vector3();
+            // Position the particles 15 units from camera along the ray
+            startPosition.copy(raycaster.ray.origin.clone().add(raycaster.ray.direction.clone().multiplyScalar(15)));
+            
+            console.log("Start position for particles:", startPosition);
+            
+            // Number of particles based on text length and device performance
+            const particleCount = Math.min(100, Math.max(20, text.length * 5));
+            console.log("Creating", particleCount, "particles");
+            
+            // Create a burst of particles
+            for (let i = 0; i < 15; i++) {
+                // Delay each particle slightly for a stream effect
+                setTimeout(() => {
+                    // Slightly randomize start position
+                    const offset = 1.0;
+                    const startPos = new THREE.Vector3(
+                        startPosition.x + (Math.random() - 0.5) * offset,
+                        startPosition.y + (Math.random() - 0.5) * offset,
+                        startPosition.z + (Math.random() - 0.5) * offset
+                    );
+                    
+                    // Create data stream from start position to black hole
+                    this.createDataStreamEffect(
+                        startPos, 
+                        blackHolePosition,
+                        2.0 + Math.random() * 2.0, // Random duration between 2-4 seconds
+                        () => {
+                            // Create a small particle burst at the black hole when particles arrive
+                            if (Math.random() > 0.5) { // Higher chance of burst for mouse interaction
+                                this.createQuantumFluctuationEffect(blackHolePosition, 0.7);
+                            }
+                        }
+                    );
+                    
+                    // Increase overall particle activity
+                    this.increaseParticleActivity(0.15);
+                    
+                }, i * 50); // Faster sequence for mouse interaction
+            }
+            
+            // Create one quantum fluctuation at the start position
+            this.createQuantumFluctuationEffect(startPosition, 1.0);
+            console.log("Initial quantum fluctuation created");
+            
+        } catch (error) {
+            console.error("Error in createParticlesAtMouse:", error);
+        }
+    }
+    
+    /**
      * Clean up resources
      */
     dispose() {

@@ -44,7 +44,7 @@
     <div id="container">
         <canvas id="blackhole-canvas"></canvas>
         <div id="ui">
-            <input type="text" id="data-input" placeholder="Feed the Singularity..." aria-label="Interactive input field">
+            <div id="right-click-hint">Right-click to feed the singularity</div>
             <div id="orbs" role="navigation" aria-label="Main navigation">
                 <a href="#about" class="orb" data-label="About" aria-label="About section">About</a>
                 <a href="#contact" class="orb" data-label="Contact" aria-label="Contact section">Contact</a>
@@ -187,6 +187,47 @@
             const closeBtns = document.querySelectorAll('.close-btn');
             const themeToggle = document.getElementById('theme-toggle');
             
+            // Add right-click handler for particle effects
+            const canvas = document.getElementById('blackhole-canvas');
+            if (canvas) {
+                // Prevent default context menu
+                canvas.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    
+                    // Hide the hint when user right-clicks
+                    document.body.classList.add('hint-hidden');
+                    
+                    // Generate a random string to simulate the input text
+                    const randomStrings = [
+                        "stardust", "cosmos", "galaxy", "nebula", "supernova",
+                        "quantum", "space", "time", "gravity", "relativity",
+                        "universe", "dimension", "matter", "energy", "infinity"
+                    ];
+                    const randomText = randomStrings[Math.floor(Math.random() * randomStrings.length)];
+                    
+                    // Create particle effect at the mouse position
+                    if (window.blackHoleApp && window.blackHoleApp.particleSystem) {
+                        // Get mouse position in normalized device coordinates (-1 to +1)
+                        const rect = canvas.getBoundingClientRect();
+                        const mouseX = ((e.clientX - rect.left) / canvas.width) * 2 - 1;
+                        const mouseY = -((e.clientY - rect.top) / canvas.height) * 2 + 1;
+                        
+                        // Create particle effect
+                        window.blackHoleApp.particleSystem.createParticlesAtMouse(mouseX, mouseY, randomText);
+                        
+                        // Play sound effect
+                        if (window.blackHoleApp && window.blackHoleApp.createDataInputSound) {
+                            window.blackHoleApp.createDataInputSound();
+                        }
+                    }
+                });
+                
+                // Hide hint after 10 seconds
+                setTimeout(() => {
+                    document.body.classList.add('hint-hidden');
+                }, 10000);
+            }
+            
             // Handle section activation via hash
             function handleHashChange() {
                 const hash = window.location.hash;
@@ -295,38 +336,6 @@
                     }
                 });
             });
-            
-            // Add sound to data input
-            const dataInput = document.getElementById('data-input');
-            if (dataInput) {
-                // Listen for Enter key specifically
-                dataInput.addEventListener('keydown', (e) => {
-                    // Handle Enter key to create particles
-                    if (e.key === 'Enter' || e.keyCode === 13) {
-                        e.preventDefault();
-                        
-                        // Get input value
-                        const inputValue = dataInput.value.trim();
-                        
-                        // Create particles if there's input text
-                        if (inputValue && window.blackHoleApp && window.blackHoleApp.particleSystem && 
-                            window.blackHoleApp.particleSystem.createDataParticles) {
-                            console.log("Creating particles for input:", inputValue);
-                            window.blackHoleApp.particleSystem.createDataParticles(inputValue);
-                            
-                            // Clear input field after submitting
-                            dataInput.value = '';
-                        }
-                    }
-                });
-                
-                // Play sound on any key press
-                dataInput.addEventListener('keypress', (e) => {
-                    if (window.blackHoleApp && window.blackHoleApp.createDataInputSound) {
-                        window.blackHoleApp.createDataInputSound();
-                    }
-                });
-            }
         });
     </script>
     
