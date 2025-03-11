@@ -67,15 +67,23 @@ export class DebugPanel {
         toggleBtn.style.position = 'fixed';
         toggleBtn.style.bottom = '10px';
         toggleBtn.style.right = '10px';
-        toggleBtn.style.background = 'rgba(0, 0, 0, 0.7)';
+        toggleBtn.style.background = 'rgba(136, 68, 255, 0.8)'; // More visible purple
         toggleBtn.style.color = '#fff';
-        toggleBtn.style.border = '1px solid #44aaff';
-        toggleBtn.style.borderRadius = '4px';
-        toggleBtn.style.padding = '5px 10px';
+        toggleBtn.style.border = '2px solid #44aaff';
+        toggleBtn.style.borderRadius = '50%'; // Make it a circle
+        toggleBtn.style.width = '50px'; // Fixed width
+        toggleBtn.style.height = '50px'; // Fixed height
         toggleBtn.style.fontSize = '12px';
         toggleBtn.style.fontFamily = 'monospace';
         toggleBtn.style.cursor = 'pointer';
         toggleBtn.style.zIndex = '9998';
+        toggleBtn.style.boxShadow = '0 0 10px rgba(136, 68, 255, 0.5)'; // Add glow effect
+        toggleBtn.style.display = 'flex';
+        toggleBtn.style.alignItems = 'center';
+        toggleBtn.style.justifyContent = 'center';
+        
+        // Store reference to the toggle button
+        this.toggleBtn = toggleBtn;
         
         // Add to document
         document.body.appendChild(this.panel);

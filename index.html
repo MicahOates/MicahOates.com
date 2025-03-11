@@ -269,6 +269,19 @@
                     }
                 });
                 
+                // Add click event listener
+                orb.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    
+                    // Play highlight sound
+                    if (window.app && window.app.createOrbHighlightSound) {
+                        window.app.createOrbHighlightSound();
+                    }
+                    
+                    // Navigate to the section
+                    window.location.hash = orb.getAttribute('href');
+                });
+                
                 orb.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();

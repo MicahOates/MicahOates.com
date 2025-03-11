@@ -571,6 +571,126 @@ class BlackHoleApp {
     }
     
     /**
+     * Create a sound effect when an orb is highlighted
+     */
+    createOrbHighlightSound() {
+        // Create a simple audio effect using Web Audio API
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            // Configure oscillator
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(440, audioContext.currentTime); // A4 note
+            oscillator.frequency.exponentialRampToValueAtTime(880, audioContext.currentTime + 0.1); // Ramp up to A5
+            
+            // Configure gain (volume)
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+            
+            // Connect nodes
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            // Play and stop
+            oscillator.start();
+            oscillator.stop(audioContext.currentTime + 0.3);
+        } catch (error) {
+            console.warn('Could not create audio effect:', error);
+        }
+    }
+    
+    /**
+     * Create a sound effect when a section is opened
+     */
+    createSectionOpenSound() {
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            // Configure oscillator
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(330, audioContext.currentTime); // E4 note
+            oscillator.frequency.exponentialRampToValueAtTime(660, audioContext.currentTime + 0.2); // Ramp up to E5
+            
+            // Configure gain (volume)
+            gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            
+            // Connect nodes
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            // Play and stop
+            oscillator.start();
+            oscillator.stop(audioContext.currentTime + 0.5);
+        } catch (error) {
+            console.warn('Could not create audio effect:', error);
+        }
+    }
+    
+    /**
+     * Create a sound effect when a section is closed
+     */
+    createSectionCloseSound() {
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            // Configure oscillator
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(660, audioContext.currentTime); // E5 note
+            oscillator.frequency.exponentialRampToValueAtTime(330, audioContext.currentTime + 0.2); // Ramp down to E4
+            
+            // Configure gain (volume)
+            gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+            
+            // Connect nodes
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            // Play and stop
+            oscillator.start();
+            oscillator.stop(audioContext.currentTime + 0.4);
+        } catch (error) {
+            console.warn('Could not create audio effect:', error);
+        }
+    }
+    
+    /**
+     * Create a sound effect for data input
+     */
+    createDataInputSound() {
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            // Configure oscillator
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(220 + Math.random() * 220, audioContext.currentTime);
+            
+            // Configure gain (volume)
+            gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+            
+            // Connect nodes
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            // Play and stop
+            oscillator.start();
+            oscillator.stop(audioContext.currentTime + 0.1);
+        } catch (error) {
+            console.warn('Could not create audio effect:', error);
+        }
+    }
+    
+    /**
      * Toggle time dilation effect
      */
     toggleTimeDilation(enabled) {
