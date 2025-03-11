@@ -217,21 +217,35 @@ class BlackHoleApp {
      * Initialize post-processing effects
      */
     initPostProcessing() {
-        this.postProcessingManager = new PostProcessingManager(this);
-        this.postProcessingManager.init();
-        
-        // Apply configuration options to effects
-        this.postProcessingManager.toggleBloom(this.config.enableBloom);
-        this.postProcessingManager.toggleFilmGrain(this.config.enableFilmGrain);
-        
-        // Register gravitational lensing with post-processing manager
-        if (this.gravitationalLensing) {
-            this.postProcessingManager.registerGravitationalLensing(this.gravitationalLensing);
-            this.postProcessingManager.toggleGravitationalLensing(this.config.enableGravitationalLensing);
+        try {
+            // Create post-processing manager
+            this.postProcessingManager = new PostProcessingManager(this);
+            
+            // Initialize post-processing
+            const initSuccess = this.postProcessingManager.init();
+            
+            // Only proceed with configuration if initialization was successful
+            if (initSuccess) {
+                // Apply configuration options to effects
+                this.postProcessingManager.toggleBloom(this.config.enableBloom);
+                this.postProcessingManager.toggleFilmGrain(this.config.enableFilmGrain);
+                
+                // Register gravitational lensing with post-processing manager
+                if (this.gravitationalLensing) {
+                    this.postProcessingManager.registerGravitationalLensing(this.gravitationalLensing);
+                    this.postProcessingManager.toggleGravitationalLensing(this.config.enableGravitationalLensing);
+                }
+                
+                // Set quality based on device performance
+                this.postProcessingManager.setQualityLevel();
+                
+                console.log('Post-processing configuration applied successfully');
+            } else {
+                console.warn('Post-processing initialization failed, effects will not be available');
+            }
+        } catch (error) {
+            console.error('Error initializing post-processing:', error);
         }
-        
-        // Set quality based on device performance
-        this.postProcessingManager.setQualityLevel();
     }
     
     /**

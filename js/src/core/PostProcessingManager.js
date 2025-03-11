@@ -14,55 +14,60 @@ import {
 } from '../shaders/PostProcessingShader.js';
 
 export class PostProcessingManager {
+    /**
+     * Constructor
+     * @param {BlackHoleApp} app - The main app instance
+     */
     constructor(app) {
+        // Store reference to app
         this.app = app;
-        this.composer = null;
-        this.passes = {
-            render: null,
-            bloom: null,
-            colorCorrection: null,
-            filmGrain: null,
-            spaceDistortion: null
-        };
         
-        // Keeps track of which effects are enabled
+        // Initialize properties
+        this.composer = null;  // Will be initialized in init()
+        this.renderTarget1 = null;
+        this.renderTarget2 = null;
+        this.passes = {};
+        this.updatedPasses = [];
+        
+        // Track which effects are enabled
         this.effectsEnabled = {
             bloom: true,
             colorCorrection: true,
             filmGrain: true,
             spaceDistortion: false,
-            gravitationalLensing: true // New effect
+            gravitationalLensing: false
         };
         
-        // Default effect parameters
+        // Store default effect parameters
         this.effectParams = {
             bloom: {
                 strength: 1.0,
-                radius: 0.75,
-                threshold: 0.15
+                radius: 0.8,
+                threshold: 0.2
             },
             colorCorrection: {
-                brightness: 0.05,
-                contrast: 0.12,
-                saturation: 0.2,
-                hue: 0.0,
-                vignetteIntensity: 1.5,
-                vignetteSize: 0.6,
-                noiseIntensity: 0.03,
-                chromaticAberration: 0.003
+                brightness: 0.1, 
+                contrast: 0.1,
+                exposure: 0.5,
+                gamma: 1.0,
+                saturation: 0.5
             },
             filmGrain: {
-                intensity: 0.05,
-                size: 1.0
+                intensity: 0.35,
+                speed: 1.0
             },
             spaceDistortion: {
-                strength: 0.2,
-                mousePosition: new THREE.Vector2(0.5, 0.5)
+                strength: 0.1,
+                speed: 1.0,
+                scale: 1.0
             }
         };
         
-        // Advanced effects (will be set externally)
+        // Reference to gravitational lensing effect (if added)
         this.gravitationalLensing = null;
+        
+        // Store initialization state
+        this.initialized = false;
     }
     
     /**
@@ -70,49 +75,40 @@ export class PostProcessingManager {
      */
     init() {
         try {
+            // Safety check for renderer
             if (!this.app.renderer) {
                 console.error('Cannot initialize post-processing: Renderer not available');
-                return;
+                return false;
             }
 
             console.log('Initializing post-processing...');
             
-            // Init default parameters
-            this.defaultParams = {
-                bloom: {
-                    strength: 0.8,
-                    radius: 0.8,
-                    threshold: 0.5
-                },
-                colorCorrection: {
-                    brightness: 0.1,
-                    contrast: 0.1,
-                    exposure: 0.5,
-                    gamma: 1.0,
-                    saturation: 0.5
-                },
-                filmGrain: {
-                    intensity: 0.35,
-                    speed: 1.0
-                },
-                spaceDistortion: {
-                    strength: 0.1,
-                    speed: 1.0,
-                    scale: 1.0
-                }
+            // Reset passes object
+            this.passes = {
+                render: null,
+                bloom: null,
+                colorCorrection: null,
+                filmGrain: null,
+                spaceDistortion: null
             };
             
-            // Initialize render targets
+            // Initialize render targets first
             const renderTargetsInitialized = this.initRenderTargets();
             if (!renderTargetsInitialized) {
                 console.error('Failed to initialize render targets, post-processing will not function properly');
-                return;
+                return false;
             }
             
             // Initialize the composer with our render target
             this.composer = new EffectComposer(this.app.renderer, this.renderTarget1);
             
-            // Set up render passes
+            // Verify composer was created successfully
+            if (!this.composer) {
+                console.error('Failed to create EffectComposer');
+                return false;
+            }
+            
+            // Set up render passes - after composer is initialized
             this.setupRenderPass();
             this.setupBloom();
             this.setupColorCorrection();
@@ -128,14 +124,21 @@ export class PostProcessingManager {
             // Store reference in the app
             this.app.composer = this.composer;
             
+            // Mark as initialized
+            this.initialized = true;
+            
             // Log initialization
             console.log('Post-processing initialized successfully with effects:', 
                 Object.keys(this.effectsEnabled)
                     .filter(key => this.effectsEnabled[key])
                     .join(', ')
             );
+            
+            return true;
         } catch (error) {
             console.error('Error initializing post-processing:', error);
+            this.initialized = false;
+            return false;
         }
     }
     
@@ -144,29 +147,34 @@ export class PostProcessingManager {
      */
     setupRenderPass() {
         try {
+            // Check if composer exists
+            if (!this.composer) {
+                console.error('Cannot set up render pass: Composer not initialized');
+                return false;
+            }
+            
             // Check if we have all required components
             if (!this.app.scene || !this.app.camera) {
                 console.error('Cannot set up render pass: Scene or camera not available');
-                return;
+                return false;
             }
             
-            // Create and add render pass
+            // Create render pass
             this.passes.render = new RenderPass(this.app.scene, this.app.camera);
             
             // Check if created successfully
             if (!this.passes.render) {
                 console.error('Failed to create RenderPass');
-                return;
+                return false;
             }
             
-            // Add pass to composer
-            if (this.composer && typeof this.composer.addPass === 'function') {
-                this.composer.addPass(this.passes.render);
-            } else {
-                console.error('Cannot add render pass: Composer not initialized properly');
-            }
+            // Add pass to composer - at this point we know composer exists
+            this.composer.addPass(this.passes.render);
+            
+            return true;
         } catch (error) {
             console.error('Error setting up render pass:', error);
+            return false;
         }
     }
     
@@ -469,7 +477,7 @@ export class PostProcessingManager {
                         
                     // Normal pass rendering
                     try {
-                        if (!pass.render) {
+                        if (!pass.render || typeof pass.render !== 'function') {
                             console.warn('Pass is missing render method:', pass.constructor.name);
                             continue;
                         }
@@ -519,40 +527,75 @@ export class PostProcessingManager {
     
     /**
      * Toggle bloom effect
+     * @param {boolean} enabled - Whether to enable or disable the effect
      */
     toggleBloom(enabled) {
+        // Check if initialized
+        if (!this.initialized || !this.composer) {
+            console.warn('Cannot toggle bloom: Post-processing not initialized');
+            return;
+        }
+        
         this.effectsEnabled.bloom = enabled;
         this.updatePasses();
     }
     
     /**
      * Toggle color correction effect
+     * @param {boolean} enabled - Whether to enable or disable the effect
      */
     toggleColorCorrection(enabled) {
+        // Check if initialized
+        if (!this.initialized || !this.composer) {
+            console.warn('Cannot toggle color correction: Post-processing not initialized');
+            return;
+        }
+        
         this.effectsEnabled.colorCorrection = enabled;
         this.updatePasses();
     }
     
     /**
      * Toggle film grain effect
+     * @param {boolean} enabled - Whether to enable or disable the effect
      */
     toggleFilmGrain(enabled) {
+        // Check if initialized
+        if (!this.initialized || !this.composer) {
+            console.warn('Cannot toggle film grain: Post-processing not initialized');
+            return;
+        }
+        
         this.effectsEnabled.filmGrain = enabled;
         this.updatePasses();
     }
     
     /**
      * Toggle space distortion effect
+     * @param {boolean} enabled - Whether to enable or disable the effect
      */
     toggleSpaceDistortion(enabled) {
+        // Check if initialized
+        if (!this.initialized || !this.composer) {
+            console.warn('Cannot toggle space distortion: Post-processing not initialized');
+            return;
+        }
+        
         this.effectsEnabled.spaceDistortion = enabled;
         this.updatePasses();
     }
     
     /**
      * Toggle gravitational lensing effect
+     * @param {boolean} enabled - Whether to enable or disable the effect
      */
     toggleGravitationalLensing(enabled) {
+        // Check if initialized
+        if (!this.initialized) {
+            console.warn('Cannot toggle gravitational lensing: Post-processing not initialized');
+            return;
+        }
+        
         this.effectsEnabled.gravitationalLensing = enabled;
         
         // Update the actual effect if available
@@ -566,21 +609,23 @@ export class PostProcessingManager {
      */
     updatePasses() {
         try {
-            // Safety check
+            // Verify composer exists
             if (!this.composer) {
                 console.error('Cannot update passes: Composer not initialized');
-                return;
+                return false;
+            }
+            
+            // Ensure passes object exists
+            if (!this.composer.passes) {
+                this.composer.passes = [];
             }
             
             // Ensure basic render pass exists
             if (!this.passes.render) {
                 console.warn('Render pass missing, creating it now');
-                this.setupRenderPass();
-                
-                // If still not available, we can't proceed
-                if (!this.passes.render) {
+                if (!this.setupRenderPass()) {
                     console.error('Failed to create render pass, cannot update passes');
-                    return;
+                    return false;
                 }
             }
             
@@ -608,14 +653,19 @@ export class PostProcessingManager {
             // Set the last pass to render to screen
             if (this.composer.passes.length > 0) {
                 for (let i = 0; i < this.composer.passes.length; i++) {
-                    this.composer.passes[i].renderToScreen = (i === this.composer.passes.length - 1);
+                    if (this.composer.passes[i]) {
+                        this.composer.passes[i].renderToScreen = (i === this.composer.passes.length - 1);
+                    }
                 }
             }
             
             // Update the validated passes for our custom renderer
             this.validatePasses();
+            
+            return true;
         } catch (error) {
             console.error('Error updating passes:', error);
+            return false;
         }
     }
     
