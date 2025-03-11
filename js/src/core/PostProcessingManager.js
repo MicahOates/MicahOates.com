@@ -70,6 +70,13 @@ export class PostProcessingManager {
      */
     init() {
         try {
+            if (!this.app.renderer) {
+                console.error('Cannot initialize post-processing: Renderer not available');
+                return;
+            }
+
+            console.log('Initializing post-processing...');
+            
             // Init default parameters
             this.defaultParams = {
                 bloom: {
@@ -102,6 +109,9 @@ export class PostProcessingManager {
                 return;
             }
             
+            // Initialize the composer with our render target
+            this.composer = new EffectComposer(this.app.renderer, this.renderTarget1);
+            
             // Set up render passes
             this.setupRenderPass();
             this.setupBloom();
@@ -109,8 +119,14 @@ export class PostProcessingManager {
             this.setupFilmGrain();
             this.setupSpaceDistortion();
             
+            // Force pass update to ensure order is correct
+            this.updatePasses();
+            
             // Validate everything is working
             this.validatePasses();
+            
+            // Store reference in the app
+            this.app.composer = this.composer;
             
             // Log initialization
             console.log('Post-processing initialized successfully with effects:', 
@@ -127,8 +143,31 @@ export class PostProcessingManager {
      * Set up render pass
      */
     setupRenderPass() {
-        this.passes.render = new RenderPass(this.app.scene, this.app.camera);
-        this.composer.addPass(this.passes.render);
+        try {
+            // Check if we have all required components
+            if (!this.app.scene || !this.app.camera) {
+                console.error('Cannot set up render pass: Scene or camera not available');
+                return;
+            }
+            
+            // Create and add render pass
+            this.passes.render = new RenderPass(this.app.scene, this.app.camera);
+            
+            // Check if created successfully
+            if (!this.passes.render) {
+                console.error('Failed to create RenderPass');
+                return;
+            }
+            
+            // Add pass to composer
+            if (this.composer && typeof this.composer.addPass === 'function') {
+                this.composer.addPass(this.passes.render);
+            } else {
+                console.error('Cannot add render pass: Composer not initialized properly');
+            }
+        } catch (error) {
+            console.error('Error setting up render pass:', error);
+        }
     }
     
     /**
@@ -331,7 +370,7 @@ export class PostProcessingManager {
     }
     
     /**
-     * Override the standard compose method to support custom effects like gravitational lensing
+     * Render the post-processing chain
      */
     render() {
         try {
@@ -344,102 +383,90 @@ export class PostProcessingManager {
                 return;
             }
             
+            // Try the standard composer first
+            if (this.composer && typeof this.composer.render === 'function') {
+                try {
+                    this.composer.render();
+                    return; // Successfully rendered with composer
+                } catch (composerError) {
+                    console.warn('EffectComposer render failed, falling back to custom renderer:', composerError);
+                    // Continue to custom rendering as fallback
+                }
+            }
+            
+            // Custom rendering as fallback (or if composer not available)
             // Store the original render target
             const originalRenderTarget = renderer.getRenderTarget();
             
-            // Clear render targets before starting the render chain
-            renderer.setRenderTarget(this.renderTarget1);
-            renderer.clear();
-            renderer.setRenderTarget(this.renderTarget2);
-            renderer.clear();
-            
-            // First, render the scene to renderTarget1
-            renderer.setRenderTarget(this.renderTarget1);
-            renderer.render(scene, camera);
-            
-            // Use the first render target as input
-            let inputRenderTarget = this.renderTarget1;
-            let outputRenderTarget = null;
-            
-            // If there are no passes enabled, render directly to the screen
-            if (!this.updatedPasses || this.updatedPasses.length === 0) {
-                renderer.setRenderTarget(null);
+            try {
+                // Clear render targets before starting the render chain
+                renderer.setRenderTarget(this.renderTarget1);
+                renderer.clear();
+                renderer.setRenderTarget(this.renderTarget2);
+                renderer.clear();
+                
+                // First, render the scene to renderTarget1
+                renderer.setRenderTarget(this.renderTarget1);
                 renderer.render(scene, camera);
-                return;
-            }
-            
-            // Process each enabled pass
-            for (let i = 0; i < this.updatedPasses.length; i++) {
-                const pass = this.updatedPasses[i];
                 
-                // Skip if pass doesn't exist or is disabled
-                if (!pass || pass.enabled === false) {
-                    continue;
+                // Use the first render target as input
+                let inputRenderTarget = this.renderTarget1;
+                let outputRenderTarget = null;
+                
+                // If there are no passes enabled, render directly to the screen
+                if (!this.updatedPasses || this.updatedPasses.length === 0) {
+                    renderer.setRenderTarget(null);
+                    renderer.render(scene, camera);
+                    return;
                 }
                 
-                // Verify uniforms exist before trying to use them
-                if (!pass.uniforms) {
-                    console.warn('Pass is missing uniforms:', pass.constructor.name);
-                    continue;
-                }
-                
-                // Verify tDiffuse uniform exists before trying to use it
-                if (!pass.uniforms['tDiffuse']) {
-                    // Try to create tDiffuse uniform if it's missing
-                    try {
-                        pass.uniforms['tDiffuse'] = { value: null };
-                        console.info('Created missing tDiffuse uniform for', pass.constructor.name);
-                    } catch (uniformError) {
-                        console.warn('Failed to create tDiffuse uniform for', pass.constructor.name, uniformError);
+                // Process each enabled pass
+                for (let i = 0; i < this.updatedPasses.length; i++) {
+                    const pass = this.updatedPasses[i];
+                    
+                    // Skip if pass doesn't exist or is disabled
+                    if (!pass || pass.enabled === false) {
                         continue;
                     }
-                }
-                
-                // Ensure we have a valid input texture
-                if (!inputRenderTarget || !inputRenderTarget.texture) {
-                    console.warn('Input render target or texture is invalid for pass:', pass.constructor.name);
-                    // Try to recover by using the initial render target
-                    if (this.renderTarget1 && this.renderTarget1.texture) {
-                        console.info('Recovering with initial render target');
-                        inputRenderTarget = this.renderTarget1;
-                    } else {
-                        // If we can't recover, skip this pass
+                    
+                    // Verify uniforms exist before trying to use them
+                    if (!pass.uniforms) {
+                        console.warn('Pass is missing uniforms:', pass.constructor.name);
                         continue;
                     }
-                }
-                
-                // Now we can safely set the tDiffuse value
-                pass.uniforms['tDiffuse'].value = inputRenderTarget.texture;
-                
-                // Determine the output target (null for final pass, swap between renderTarget1/2 otherwise)
-                outputRenderTarget = i === this.updatedPasses.length - 1 ? null : 
-                    (inputRenderTarget === this.renderTarget1 ? this.renderTarget2 : this.renderTarget1);
                     
-                // Check if this should be processed by gravitational lensing
-                if (this.gravitationalLensing && 
-                    this.effectsEnabled.gravitationalLensing && 
-                    (i === this.updatedPasses.length - 1 || i === this.updatedPasses.length - 2 && this.updatedPasses[this.updatedPasses.length - 1].enabled === false)) {
-                    
-                    try {
-                        // Let the lensing effect process the current render target
-                        this.gravitationalLensing.prepareForRender(inputRenderTarget);
-                        
-                        // Render the lensing effect to the output
-                        this.gravitationalLensing.render(renderer, outputRenderTarget);
-                    } catch (lensingError) {
-                        console.error('Error in gravitational lensing:', lensingError);
-                        
-                        // Fallback to normal rendering on error
+                    // Verify tDiffuse uniform exists before trying to use it
+                    if (!pass.uniforms['tDiffuse']) {
+                        // Try to create tDiffuse uniform if it's missing
                         try {
-                            if (outputRenderTarget && pass.render) {
-                                renderer.setRenderTarget(outputRenderTarget);
-                                pass.render(renderer, outputRenderTarget);
-                            }
-                        } catch (fallbackError) {
-                            console.error('Fallback rendering also failed:', fallbackError);
+                            pass.uniforms['tDiffuse'] = { value: null };
+                            console.info('Created missing tDiffuse uniform for', pass.constructor.name);
+                        } catch (uniformError) {
+                            console.warn('Failed to create tDiffuse uniform for', pass.constructor.name, uniformError);
+                            continue;
                         }
                     }
-                } else {
+                    
+                    // Ensure we have a valid input texture
+                    if (!inputRenderTarget || !inputRenderTarget.texture) {
+                        console.warn('Input render target or texture is invalid for pass:', pass.constructor.name);
+                        // Try to recover by using the initial render target
+                        if (this.renderTarget1 && this.renderTarget1.texture) {
+                            console.info('Recovering with initial render target');
+                            inputRenderTarget = this.renderTarget1;
+                        } else {
+                            // If we can't recover, skip this pass
+                            continue;
+                        }
+                    }
+                    
+                    // Now we can safely set the tDiffuse value
+                    pass.uniforms['tDiffuse'].value = inputRenderTarget.texture;
+                    
+                    // Determine the output target (null for final pass, swap between renderTarget1/2 otherwise)
+                    outputRenderTarget = i === this.updatedPasses.length - 1 ? null : 
+                        (inputRenderTarget === this.renderTarget1 ? this.renderTarget2 : this.renderTarget1);
+                        
                     // Normal pass rendering
                     try {
                         if (!pass.render) {
@@ -462,19 +489,19 @@ export class PostProcessingManager {
                             }
                         }
                     }
+                    
+                    // Only use this output as the next input if it's valid
+                    if (outputRenderTarget && outputRenderTarget.texture) {
+                        inputRenderTarget = outputRenderTarget;
+                    } else if (i < this.updatedPasses.length - 1) {
+                        // Only warn if this isn't the final pass (which uses null render target)
+                        console.warn('Output render target is invalid, keeping previous input');
+                    }
                 }
-                
-                // Only use this output as the next input if it's valid
-                if (outputRenderTarget && outputRenderTarget.texture) {
-                    inputRenderTarget = outputRenderTarget;
-                } else if (i < this.updatedPasses.length - 1) {
-                    // Only warn if this isn't the final pass (which uses null render target)
-                    console.warn('Output render target is invalid, keeping previous input');
-                }
+            } finally {
+                // Always restore the original render target
+                renderer.setRenderTarget(originalRenderTarget);
             }
-            
-            // Restore the original render target
-            renderer.setRenderTarget(originalRenderTarget);
         } catch (error) {
             console.error('Post-processing render error:', error);
             // Attempt fallback direct rendering
@@ -535,35 +562,60 @@ export class PostProcessingManager {
     }
     
     /**
-     * Update pass order and enabled state
+     * Update passes in the composer
      */
     updatePasses() {
-        // Clear existing passes, keep only the render pass
-        this.composer.passes = [this.passes.render];
-        
-        // Add passes in desired order
-        if (this.effectsEnabled.bloom && this.passes.bloom) {
-            this.composer.addPass(this.passes.bloom);
-        }
-        
-        if (this.effectsEnabled.colorCorrection && this.passes.colorCorrection) {
-            this.composer.addPass(this.passes.colorCorrection);
-        }
-        
-        if (this.effectsEnabled.spaceDistortion && this.passes.spaceDistortion) {
-            this.composer.addPass(this.passes.spaceDistortion);
-        }
-        
-        // Film grain should always be the last effect
-        if (this.effectsEnabled.filmGrain && this.passes.filmGrain) {
-            this.composer.addPass(this.passes.filmGrain);
-        }
-        
-        // Set the last pass to render to screen
-        if (this.composer.passes.length > 0) {
-            for (let i = 0; i < this.composer.passes.length; i++) {
-                this.composer.passes[i].renderToScreen = (i === this.composer.passes.length - 1);
+        try {
+            // Safety check
+            if (!this.composer) {
+                console.error('Cannot update passes: Composer not initialized');
+                return;
             }
+            
+            // Ensure basic render pass exists
+            if (!this.passes.render) {
+                console.warn('Render pass missing, creating it now');
+                this.setupRenderPass();
+                
+                // If still not available, we can't proceed
+                if (!this.passes.render) {
+                    console.error('Failed to create render pass, cannot update passes');
+                    return;
+                }
+            }
+            
+            // Clear existing passes, keep only the render pass
+            this.composer.passes = [this.passes.render];
+            
+            // Add passes in desired order
+            if (this.effectsEnabled.bloom && this.passes.bloom) {
+                this.composer.addPass(this.passes.bloom);
+            }
+            
+            if (this.effectsEnabled.colorCorrection && this.passes.colorCorrection) {
+                this.composer.addPass(this.passes.colorCorrection);
+            }
+            
+            if (this.effectsEnabled.spaceDistortion && this.passes.spaceDistortion) {
+                this.composer.addPass(this.passes.spaceDistortion);
+            }
+            
+            // Film grain should always be the last effect
+            if (this.effectsEnabled.filmGrain && this.passes.filmGrain) {
+                this.composer.addPass(this.passes.filmGrain);
+            }
+            
+            // Set the last pass to render to screen
+            if (this.composer.passes.length > 0) {
+                for (let i = 0; i < this.composer.passes.length; i++) {
+                    this.composer.passes[i].renderToScreen = (i === this.composer.passes.length - 1);
+                }
+            }
+            
+            // Update the validated passes for our custom renderer
+            this.validatePasses();
+        } catch (error) {
+            console.error('Error updating passes:', error);
         }
     }
     
@@ -836,7 +888,75 @@ export class PostProcessingManager {
      */
     validatePasses() {
         try {
-            // Create a copy of passes that are properly initialized and enabled
+            // First validate the composer passes if available
+            if (this.composer && this.composer.passes) {
+                for (let i = 0; i < this.composer.passes.length; i++) {
+                    const pass = this.composer.passes[i];
+                    
+                    if (!pass) {
+                        console.warn(`Pass ${i}: Invalid pass (null or undefined)`);
+                        this.composer.passes.splice(i, 1);
+                        i--;
+                        continue;
+                    }
+                    
+                    // Skip RenderPass as it doesn't need tDiffuse
+                    if (pass instanceof RenderPass) {
+                        continue;
+                    }
+                    
+                    // Special handling for UnrealBloomPass
+                    if (pass.constructor.name === 'UnrealBloomPass' || pass instanceof UnrealBloomPass) {
+                        // Ensure UnrealBloomPass has necessary properties
+                        if (!pass.uniforms) {
+                            console.warn('UnrealBloomPass is missing uniforms, adding empty uniforms object');
+                            pass.uniforms = {};
+                        }
+                        
+                        // Ensure tDiffuse exists
+                        if (!pass.uniforms.tDiffuse) {
+                            pass.uniforms.tDiffuse = { value: null };
+                        }
+                    }
+                    
+                    // Check if this is a ShaderPass and fix if needed
+                    if (pass.constructor.name === 'ShaderPass') {
+                        // ShaderPass must have uniforms
+                        if (!pass.uniforms) {
+                            console.warn(`Pass ${i} (${pass.constructor.name}) has no uniforms - adding default uniforms`);
+                            pass.uniforms = {
+                                tDiffuse: { value: null }
+                            };
+                        }
+                        
+                        // ShaderPass must have tDiffuse uniform
+                        if (!pass.uniforms.tDiffuse) {
+                            console.warn(`Pass ${i} (${pass.constructor.name}) has no tDiffuse uniform - adding it`);
+                            pass.uniforms.tDiffuse = { value: null };
+                        }
+                    }
+                    
+                    // All passes must have a render method
+                    if (!pass.render || typeof pass.render !== 'function') {
+                        console.error(`Pass ${i} (${pass.constructor.name}) has no render method - removing`);
+                        this.composer.passes.splice(i, 1);
+                        i--;
+                        continue;
+                    }
+                }
+                
+                // Ensure at least one pass remains and the final pass is set to render to screen
+                if (this.composer.passes.length > 0) {
+                    const lastPass = this.composer.passes[this.composer.passes.length - 1];
+                    if (lastPass && lastPass.renderToScreen !== undefined) {
+                        lastPass.renderToScreen = true;
+                    }
+                } else {
+                    console.error('No valid passes remain after validation');
+                }
+            }
+            
+            // Create a copy of passes that are properly initialized and enabled for our custom renderer
             this.updatedPasses = [];
             
             // Check each pass
@@ -869,7 +989,7 @@ export class PostProcessingManager {
                 this.updatedPasses.push(pass);
             }
             
-            return this.updatedPasses.length > 0;
+            return true;
         } catch (error) {
             console.error('Error validating passes:', error);
             return false;
