@@ -63,6 +63,14 @@ export class PostProcessingManager {
             }
         };
         
+        // Initialize defaultParams for storing original values
+        this.defaultParams = {
+            bloom: {},
+            colorCorrection: {},
+            filmGrain: {},
+            spaceDistortion: {}
+        };
+        
         // Reference to gravitational lensing effect (if added)
         this.gravitationalLensing = null;
         
@@ -108,33 +116,39 @@ export class PostProcessingManager {
                 return false;
             }
             
-            // Set up render passes - after composer is initialized
-            this.setupRenderPass();
-            this.setupBloom();
-            this.setupColorCorrection();
-            this.setupFilmGrain();
-            this.setupSpaceDistortion();
-            
-            // Force pass update to ensure order is correct
-            this.updatePasses();
-            
-            // Validate everything is working
-            this.validatePasses();
-            
-            // Store reference in the app
-            this.app.composer = this.composer;
-            
-            // Mark as initialized
-            this.initialized = true;
-            
-            // Log initialization
-            console.log('Post-processing initialized successfully with effects:', 
-                Object.keys(this.effectsEnabled)
-                    .filter(key => this.effectsEnabled[key])
-                    .join(', ')
-            );
-            
-            return true;
+            try {
+                // Set up render passes - after composer is initialized
+                this.setupRenderPass();
+                this.setupBloom();
+                this.setupColorCorrection();
+                this.setupFilmGrain();
+                this.setupSpaceDistortion();
+                
+                // Force pass update to ensure order is correct
+                this.updatePasses();
+                
+                // Validate everything is working
+                this.validatePasses();
+                
+                // Store reference in the app
+                this.app.composer = this.composer;
+                
+                // Mark as initialized
+                this.initialized = true;
+                
+                // Log initialization
+                console.log('Post-processing initialized successfully with effects:', 
+                    Object.keys(this.effectsEnabled)
+                        .filter(key => this.effectsEnabled[key])
+                        .join(', ')
+                );
+                
+                return true;
+            } catch (setupError) {
+                console.error('Error during post-processing setup:', setupError);
+                this.initialized = false;
+                return false;
+            }
         } catch (error) {
             console.error('Error initializing post-processing:', error);
             this.initialized = false;
@@ -252,12 +266,14 @@ export class PostProcessingManager {
                 this.effectsEnabled.bloom = false;
             }
             
-            // Add the default bloom parameters for later reference
-            this.defaultParams.bloom = {
-                strength: bloomStrength,
-                radius: bloomRadius,
-                threshold: bloomThreshold
-            };
+            // Add the default bloom parameters for later reference with safety check
+            if (this.defaultParams) {
+                this.defaultParams.bloom = {
+                    strength: bloomStrength,
+                    radius: bloomRadius,
+                    threshold: bloomThreshold
+                };
+            }
         } catch (error) {
             console.error('Error setting up bloom effect:', error);
             this.effectsEnabled.bloom = false;

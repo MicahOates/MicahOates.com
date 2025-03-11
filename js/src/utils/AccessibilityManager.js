@@ -2,6 +2,8 @@
  * AccessibilityManager
  * Enhances application accessibility with keyboard navigation and screen reader support
  */
+import * as THREE from 'three';
+
 export class AccessibilityManager {
     constructor(app) {
         this.app = app;
@@ -259,32 +261,60 @@ export class AccessibilityManager {
         
         switch(action) {
             case 'rotate-up':
-                controls.rotateUp(rotateStep);
+                // Manual rotation by adjusting the camera position
+                const currentDistance = camera.position.length();
+                controls._spherical = controls._spherical || new THREE.Spherical().setFromVector3(camera.position);
+                controls._spherical.phi = Math.max(
+                    controls.minPolarAngle,
+                    Math.min(controls.maxPolarAngle, controls._spherical.phi - rotateStep)
+                );
+                camera.position.setFromSpherical(controls._spherical).multiplyScalar(currentDistance);
                 controls.update();
                 break;
                 
             case 'rotate-down':
-                controls.rotateUp(-rotateStep);
+                // Manual rotation by adjusting the camera position
+                const currentDistDown = camera.position.length();
+                controls._spherical = controls._spherical || new THREE.Spherical().setFromVector3(camera.position);
+                controls._spherical.phi = Math.max(
+                    controls.minPolarAngle,
+                    Math.min(controls.maxPolarAngle, controls._spherical.phi + rotateStep)
+                );
+                camera.position.setFromSpherical(controls._spherical).multiplyScalar(currentDistDown);
                 controls.update();
                 break;
                 
             case 'rotate-left':
-                controls.rotateLeft(rotateStep);
+                // Manual rotation by adjusting the camera position
+                const currentDistLeft = camera.position.length();
+                controls._spherical = controls._spherical || new THREE.Spherical().setFromVector3(camera.position);
+                controls._spherical.theta += rotateStep;
+                camera.position.setFromSpherical(controls._spherical).multiplyScalar(currentDistLeft);
                 controls.update();
                 break;
                 
             case 'rotate-right':
-                controls.rotateLeft(-rotateStep);
+                // Manual rotation by adjusting the camera position
+                const currentDistRight = camera.position.length();
+                controls._spherical = controls._spherical || new THREE.Spherical().setFromVector3(camera.position);
+                controls._spherical.theta -= rotateStep;
+                camera.position.setFromSpherical(controls._spherical).multiplyScalar(currentDistRight);
                 controls.update();
                 break;
                 
             case 'zoom-in':
-                controls.dollyIn(zoomStep);
+                // Use a simpler approach for zooming - adjust distance directly
+                const zoomInVector = new THREE.Vector3().subVectors(camera.position, controls.target);
+                zoomInVector.multiplyScalar(1 / zoomStep);
+                camera.position.copy(controls.target).add(zoomInVector);
                 controls.update();
                 break;
                 
             case 'zoom-out':
-                controls.dollyOut(zoomStep);
+                // Use a simpler approach for zooming - adjust distance directly
+                const zoomOutVector = new THREE.Vector3().subVectors(camera.position, controls.target);
+                zoomOutVector.multiplyScalar(zoomStep);
+                camera.position.copy(controls.target).add(zoomOutVector);
                 controls.update();
                 break;
                 
@@ -309,16 +339,35 @@ export class AccessibilityManager {
                 break;
                 
             case 'reset-camera':
-                if (this.app.sceneManager && this.app.sceneManager.resetCameraPosition) {
-                    this.app.sceneManager.resetCameraPosition();
+                // Use the controls.reset() method if available, otherwise set default camera position
+                if (controls.reset) {
+                    controls.reset();
+                } else {
+                    // Set default camera position and target
+                    camera.position.set(0, 0, 40);
+                    controls.target.set(0, 0, 0);
+                    controls.update();
                 }
                 break;
                 
             case 'toggle-rotation':
-                if (this.app.config) {
-                    this.app.config.autoRotate = !this.app.config.autoRotate;
-                    controls.autoRotate = this.app.config.autoRotate;
-                    description = this.app.config.autoRotate ? 'Auto-rotation enabled' : 'Auto-rotation disabled';
+                // Safely toggle autoRotate if supported by the controls
+                if (this.app.config && controls) {
+                    // Initialize autoRotate if it doesn't exist yet
+                    if (typeof controls.autoRotate === 'undefined') {
+                        controls.autoRotate = false;
+                    }
+                    
+                    // Toggle the value
+                    controls.autoRotate = !controls.autoRotate;
+                    
+                    // Update app config if it exists
+                    if (this.app.config) {
+                        this.app.config.autoRotate = controls.autoRotate;
+                    }
+                    
+                    // Update description for screen reader
+                    description = controls.autoRotate ? 'Auto-rotation enabled' : 'Auto-rotation disabled';
                 }
                 break;
                 

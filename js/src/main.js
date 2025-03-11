@@ -225,7 +225,7 @@ class BlackHoleApp {
             const initSuccess = this.postProcessingManager.init();
             
             // Only proceed with configuration if initialization was successful
-            if (initSuccess) {
+            if (initSuccess && this.postProcessingManager.initialized) {
                 // Apply configuration options to effects
                 this.postProcessingManager.toggleBloom(this.config.enableBloom);
                 this.postProcessingManager.toggleFilmGrain(this.config.enableFilmGrain);
@@ -242,9 +242,14 @@ class BlackHoleApp {
                 console.log('Post-processing configuration applied successfully');
             } else {
                 console.warn('Post-processing initialization failed, effects will not be available');
+                // Set the postProcessingManager to null to prevent further access attempts
+                if (!initSuccess) {
+                    this.postProcessingManager = null;
+                }
             }
         } catch (error) {
             console.error('Error initializing post-processing:', error);
+            this.postProcessingManager = null;
         }
     }
     
