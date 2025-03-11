@@ -843,23 +843,38 @@ let app = null;
 
 // Initialize application when DOM is loaded
 function initApp() {
-    app = new BlackHoleApp({
-        canvas: document.getElementById('blackhole-canvas'),
-        autoRotate: true,
-        showFPS: false,
-        enableGravitationalLensing: true,
-        enableTimeDilation: true,
-        enableNebula: true,
-        theme: {
-            primary: '#8844ff',
-            secondary: '#44aaff',
-            tertiary: '#ff44aa',
-            background: '#000000'
+    try {
+        console.log("Initializing BlackHoleApp...");
+        app = new BlackHoleApp({
+            canvas: document.getElementById('blackhole-canvas'),
+            autoRotate: true,
+            showFPS: false,
+            enableGravitationalLensing: true,
+            enableTimeDilation: true,
+            enableNebula: true,
+            theme: {
+                primary: '#8844ff',
+                secondary: '#44aaff',
+                tertiary: '#ff44aa',
+                background: '#000000'
+            }
+        });
+        
+        // Make app globally accessible for debugging and event handling
+        window.blackHoleApp = app;
+        window.app = app; // For backward compatibility
+        
+        console.log("BlackHoleApp initialized successfully.");
+        
+        // Verify the app has the required methods
+        if (app.particleSystem && typeof app.particleSystem.createDataParticles === 'function') {
+            console.log("ParticleSystem with createDataParticles is available");
+        } else {
+            console.warn("ParticleSystem or createDataParticles method is not available");
         }
-    });
-    
-    // Make app globally accessible for debugging
-    window.blackHoleApp = app;
+    } catch (error) {
+        console.error("Error initializing BlackHoleApp:", error);
+    }
 }
 
 // Initialize when DOM is ready

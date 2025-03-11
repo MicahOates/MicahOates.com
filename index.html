@@ -206,8 +206,8 @@
                         targetSection.focus({ preventScroll: true });
                         
                         // Play section open sound if app exists
-                        if (window.app && window.app.createSectionOpenSound) {
-                            window.app.createSectionOpenSound();
+                        if (window.blackHoleApp && window.blackHoleApp.createSectionOpenSound) {
+                            window.blackHoleApp.createSectionOpenSound();
                         }
                         
                         // Analytics tracking removed for privacy
@@ -227,8 +227,8 @@
                     e.preventDefault();
                     
                     // Play section close sound if app exists
-                    if (window.app && window.app.createSectionCloseSound) {
-                        window.app.createSectionCloseSound();
+                    if (window.blackHoleApp && window.blackHoleApp.createSectionCloseSound) {
+                        window.blackHoleApp.createSectionCloseSound();
                     }
                     
                     history.pushState("", document.title, window.location.pathname);
@@ -244,8 +244,8 @@
                     const theme = document.body.classList.contains('light-mode') ? 'light' : 'dark';
                     localStorage.setItem('theme', theme);
                     // This assumes your app object is accessible here
-                    if (window.app && window.app.updateVisualsForTheme) {
-                        window.app.updateVisualsForTheme(theme);
+                    if (window.blackHoleApp && window.blackHoleApp.updateVisualsForTheme) {
+                        window.blackHoleApp.updateVisualsForTheme(theme);
                     }
                 }
             });
@@ -254,8 +254,8 @@
             const savedTheme = localStorage.getItem('theme');
             if (savedTheme === 'light') {
                 document.body.classList.add('light-mode');
-                if (window.app && window.app.updateVisualsForTheme) {
-                    window.app.updateVisualsForTheme('light');
+                if (window.blackHoleApp && window.blackHoleApp.updateVisualsForTheme) {
+                    window.blackHoleApp.updateVisualsForTheme('light');
                 }
             }
             
@@ -264,8 +264,8 @@
             orbs.forEach(orb => {
                 // Play sound on hover
                 orb.addEventListener('mouseenter', () => {
-                    if (window.app && window.app.createOrbHighlightSound) {
-                        window.app.createOrbHighlightSound();
+                    if (window.blackHoleApp && window.blackHoleApp.createOrbHighlightSound) {
+                        window.blackHoleApp.createOrbHighlightSound();
                     }
                 });
                 
@@ -274,8 +274,8 @@
                     e.preventDefault();
                     
                     // Play highlight sound
-                    if (window.app && window.app.createOrbHighlightSound) {
-                        window.app.createOrbHighlightSound();
+                    if (window.blackHoleApp && window.blackHoleApp.createOrbHighlightSound) {
+                        window.blackHoleApp.createOrbHighlightSound();
                     }
                     
                     // Navigate to the section
@@ -287,8 +287,8 @@
                         e.preventDefault();
                         
                         // Play highlight sound
-                        if (window.app && window.app.createOrbHighlightSound) {
-                            window.app.createOrbHighlightSound();
+                        if (window.blackHoleApp && window.blackHoleApp.createOrbHighlightSound) {
+                            window.blackHoleApp.createOrbHighlightSound();
                         }
                         
                         window.location.hash = orb.getAttribute('href');
@@ -299,9 +299,31 @@
             // Add sound to data input
             const dataInput = document.getElementById('data-input');
             if (dataInput) {
+                // Listen for Enter key specifically
+                dataInput.addEventListener('keydown', (e) => {
+                    // Handle Enter key to create particles
+                    if (e.key === 'Enter' || e.keyCode === 13) {
+                        e.preventDefault();
+                        
+                        // Get input value
+                        const inputValue = dataInput.value.trim();
+                        
+                        // Create particles if there's input text
+                        if (inputValue && window.blackHoleApp && window.blackHoleApp.particleSystem && 
+                            window.blackHoleApp.particleSystem.createDataParticles) {
+                            console.log("Creating particles for input:", inputValue);
+                            window.blackHoleApp.particleSystem.createDataParticles(inputValue);
+                            
+                            // Clear input field after submitting
+                            dataInput.value = '';
+                        }
+                    }
+                });
+                
+                // Play sound on any key press
                 dataInput.addEventListener('keypress', (e) => {
-                    if (window.app && window.app.createDataInputSound) {
-                        window.app.createDataInputSound();
+                    if (window.blackHoleApp && window.blackHoleApp.createDataInputSound) {
+                        window.blackHoleApp.createDataInputSound();
                     }
                 });
             }

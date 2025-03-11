@@ -358,57 +358,81 @@ export class ParticleSystem {
      * @param {string} input - User input from the "Feed the Singularity" field
      */
     createDataParticles(input) {
-        if (!input || input.trim().length === 0) return;
+        console.log("createDataParticles called with input:", input);
         
-        // Skip if too many effects already active
-        if (this.activeEffects.length >= this.settings.maxEffects) return;
-        
-        // Get black hole position (assumed to be at the center)
-        const blackHolePosition = new THREE.Vector3(0, 0, 0);
-        
-        // Create starting position for particles - in front of camera
-        const cameraDirection = new THREE.Vector3(0, 0, -1);
-        cameraDirection.applyQuaternion(this.app.camera.quaternion);
-        const startPosition = new THREE.Vector3().copy(this.app.camera.position).add(
-            cameraDirection.multiplyScalar(10) // 10 units in front of camera
-        );
-        
-        // Number of particles based on text length and device performance
-        const particleCount = Math.min(100, Math.max(20, input.length * 5));
-        
-        // Create individual particles for each character
-        for (let i = 0; i < input.length; i++) {
-            // Delay each character's particles slightly for a stream effect
-            setTimeout(() => {
-                // Slightly randomize start position
-                const offset = 0.5;
-                const startPos = new THREE.Vector3(
-                    startPosition.x + (Math.random() - 0.5) * offset,
-                    startPosition.y + (Math.random() - 0.5) * offset,
-                    startPosition.z + (Math.random() - 0.5) * offset
-                );
-                
-                // Create data stream from start position to black hole
-                this.createDataStreamEffect(
-                    startPos, 
-                    blackHolePosition,
-                    3.0 + Math.random() * 2.0, // Random duration between 3-5 seconds
-                    () => {
-                        // Create a small particle burst at the black hole when particles arrive
-                        if (Math.random() > 0.7) { // Only create bursts sometimes to prevent overwhelming effects
-                            this.createQuantumFluctuationEffect(blackHolePosition, 0.5);
-                        }
-                    }
-                );
-                
-                // Increase overall particle activity
-                this.increaseParticleActivity(0.1);
-                
-            }, i * 100); // 100ms delay between characters
+        if (!input || input.trim().length === 0) {
+            console.log("Input is empty, skipping particle creation");
+            return;
         }
         
-        // Create one quantum fluctuation at the start position
-        this.createQuantumFluctuationEffect(startPosition, 0.8);
+        // Skip if too many effects already active
+        if (this.activeEffects.length >= this.settings.maxEffects) {
+            console.log("Too many active effects, skipping particle creation");
+            return;
+        }
+        
+        try {
+            // Get black hole position (assumed to be at the center)
+            const blackHolePosition = new THREE.Vector3(0, 0, 0);
+            
+            // Create starting position for particles - in front of camera
+            const cameraDirection = new THREE.Vector3(0, 0, -1);
+            
+            if (!this.app.camera) {
+                console.error("Camera is not initialized");
+                return;
+            }
+            
+            cameraDirection.applyQuaternion(this.app.camera.quaternion);
+            const startPosition = new THREE.Vector3().copy(this.app.camera.position).add(
+                cameraDirection.multiplyScalar(10) // 10 units in front of camera
+            );
+            
+            console.log("Camera position:", this.app.camera.position);
+            console.log("Start position for particles:", startPosition);
+            
+            // Number of particles based on text length and device performance
+            const particleCount = Math.min(100, Math.max(20, input.length * 5));
+            console.log("Creating", particleCount, "particles");
+            
+            // Create individual particles for each character
+            for (let i = 0; i < input.length; i++) {
+                // Delay each character's particles slightly for a stream effect
+                setTimeout(() => {
+                    // Slightly randomize start position
+                    const offset = 0.5;
+                    const startPos = new THREE.Vector3(
+                        startPosition.x + (Math.random() - 0.5) * offset,
+                        startPosition.y + (Math.random() - 0.5) * offset,
+                        startPosition.z + (Math.random() - 0.5) * offset
+                    );
+                    
+                    // Create data stream from start position to black hole
+                    this.createDataStreamEffect(
+                        startPos, 
+                        blackHolePosition,
+                        3.0 + Math.random() * 2.0, // Random duration between 3-5 seconds
+                        () => {
+                            // Create a small particle burst at the black hole when particles arrive
+                            if (Math.random() > 0.7) { // Only create bursts sometimes to prevent overwhelming effects
+                                this.createQuantumFluctuationEffect(blackHolePosition, 0.5);
+                            }
+                        }
+                    );
+                    
+                    // Increase overall particle activity
+                    this.increaseParticleActivity(0.1);
+                    
+                }, i * 100); // 100ms delay between characters
+            }
+            
+            // Create one quantum fluctuation at the start position
+            this.createQuantumFluctuationEffect(startPosition, 0.8);
+            console.log("Initial quantum fluctuation created");
+            
+        } catch (error) {
+            console.error("Error in createDataParticles:", error);
+        }
     }
     
     /**
