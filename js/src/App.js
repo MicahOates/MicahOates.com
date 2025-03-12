@@ -26,6 +26,12 @@ export class App {
         this.renderer = null;
         this.clock = null;
         
+        // Sizes for rendering
+        this.sizes = {
+            width: window.innerWidth,
+            height: window.innerHeight
+        };
+        
         // Managers
         this.sceneManager = null;
         this.postProcessingManager = null;
@@ -69,86 +75,88 @@ export class App {
     
     /**
      * Initialize the application with error handling
+     * @returns {Promise} A promise that resolves when initialization is complete
      */
     init() {
-        try {
-            // Check for WebGL support
-            if (!this.checkWebGLSupport()) {
-                this.showFallbackContent('WebGL is not supported by your browser or graphics card. Please try a different browser or device.');
-                return;
+        return new Promise((resolve, reject) => {
+            try {
+                // Check for WebGL support
+                if (!this.checkWebGLSupport()) {
+                    this.showFallbackContent('WebGL is not supported by your browser or graphics card. Please try a different browser or device.');
+                    reject(new Error('WebGL not supported'));
+                    return;
+                }
+                
+                // Initialize asset manager first
+                this.initAssetManager();
+                
+                // Initialize physics controller
+                this.initPhysicsController();
+                
+                // Load essential assets before continuing
+                this.loadEssentialAssets().then(() => {
+                    // Create renderer with error handling
+                    this.createRenderer();
+                    
+                    // Initialize scene with error handling
+                    this.initScene();
+                    
+                    // Initialize effects
+                    try {
+                        this.initEffects();
+                    } catch (effectError) {
+                        console.error('Failed to initialize effects:', effectError);
+                        // Continue without effects
+                    }
+                    
+                    // Initialize UI
+                    try {
+                        this.initUIManager();
+                        this.initUIController();
+                    } catch (uiError) {
+                        console.error('Failed to initialize UI:', uiError);
+                        // Continue without UI
+                    }
+                    
+                    // Initialize audio
+                    try {
+                        this.initAudioManager();
+                    } catch (audioError) {
+                        console.error('Failed to initialize audio:', audioError);
+                        // Continue without audio
+                    }
+                    
+                    // Add event listeners
+                    window.addEventListener('resize', this.handleResize);
+                    window.addEventListener('error', this.handleGlobalError.bind(this));
+                    
+                    // Start animation loop
+                    this.isRunning = true;
+                    this.animate();
+                    
+                    // Load non-essential assets in the background
+                    this.loadNonEssentialAssets().catch(error => {
+                        console.warn('Failed to load some non-essential assets:', error);
+                        // Continue anyway
+                    });
+                    
+                    // GPU hang detection
+                    this.setupGPUHangDetection();
+                    
+                    // Resolve the promise when everything is ready
+                    console.log('App initialization complete');
+                    resolve();
+                }).catch(error => {
+                    console.error('Failed to load essential assets:', error);
+                    this.showFallbackContent('Failed to load essential assets. Please check your connection and try again.');
+                    reject(error);
+                });
+            } catch (error) {
+                console.error('Critical initialization error:', error);
+                this.showFallbackContent('An error occurred during initialization. Please try refreshing the page.');
+                reject(error);
             }
-            
-            // Initialize asset manager first
-            this.initAssetManager();
-            
-            // Initialize physics controller
-            this.initPhysicsController();
-            
-            // Load essential assets before continuing
-            this.loadEssentialAssets().then(() => {
-                // Create renderer with error handling
-                this.createRenderer();
-                
-                // Initialize scene with error handling
-                this.initScene();
-                
-                // Initialize effects
-                try {
-                    this.initEffects();
-                } catch (effectError) {
-                    console.error('Failed to initialize effects:', effectError);
-                    // Continue without effects
-                }
-                
-                // Initialize UI
-                try {
-                    this.initUIManager();
-                    this.initUIController();
-                } catch (uiError) {
-                    console.error('Failed to initialize UI:', uiError);
-                    // Continue without UI elements
-                }
-                
-                // Initialize Audio
-                try {
-                    this.initAudioManager();
-                } catch (audioError) {
-                    console.error('Failed to initialize audio:', audioError);
-                    // Continue without audio
-                }
-                
-                // Initialize Documentation
-                this.initDocumentation();
-                
-                // Set up resize handler
-                window.addEventListener('resize', this.handleResize, false);
-                
-                // Set up error handler for unhandled errors
-                window.addEventListener('error', this.handleGlobalError.bind(this));
-                
-                // Set up GPU hang detection
-                this.setupGPUHangDetection();
-                
-                // Initialize and start the physics simulation
-                this.startPhysicsSimulation();
-                
-                // Start animation loop
-                this.isRunning = true;
-                this.animate();
-                
-                // Log initialization success
-                console.log('Application initialized successfully');
-                
-                // Load non-essential assets after initialization
-                this.loadNonEssentialAssets();
-            }).catch(error => {
-                console.error('Failed to load essential assets:', error);
-                this.showFallbackContent('Failed to load required assets. Please check your connection and try again.');
-            });
-        } catch (error) {
-            console.error('Application initialization failed:', error);
-            this.showFallbackContent('There was a problem initializing the visualization. Please try refreshing the page or using a different browser.');
-        }
+        });
     }
     
     /**
@@ -270,8 +278,22 @@ export class App {
      */
     createRenderer() {
         try {
-            // Create renderer
+            // Get the canvas element or create one if it doesn't exist
+            const canvas = document.getElementById('blackhole-canvas');
+            if (!canvas) {
+                console.error('Canvas element with ID "blackhole-canvas" not found');
+                // Creating a fallback canvas for testing
+                const fallbackCanvas = document.createElement('canvas');
+                fallbackCanvas.id = 'blackhole-canvas';
+                document.body.appendChild(fallbackCanvas);
+                this.canvas = fallbackCanvas;
+            } else {
+                this.canvas = canvas;
+            }
+            
+            // Create renderer with the canvas element
             this.renderer = new THREE.WebGLRenderer({
+                canvas: this.canvas,
                 antialias: true,
                 alpha: true,
                 powerPreference: 'high-performance',
@@ -293,16 +315,10 @@ export class App {
             // Test if rendering works by rendering a simple scene
             this.testRenderer();
             
-            // Append to DOM
-            const canvas = document.getElementById('scene');
-            if (canvas) {
-                canvas.appendChild(this.renderer.domElement);
-            } else {
-                document.body.appendChild(this.renderer.domElement);
-            }
+            console.log('WebGL renderer created successfully');
         } catch (error) {
             console.error('Failed to create renderer:', error);
-            throw new Error('Could not initialize WebGL renderer');
+            throw new Error('Could not initialize WebGL renderer: ' + error.message);
         }
     }
     
@@ -870,6 +886,12 @@ export class App {
      */
     onResize() {
         if (!this.camera || !this.renderer) return;
+        
+        // Update sizes property
+        this.sizes = {
+            width: window.innerWidth,
+            height: window.innerHeight
+        };
         
         // Update camera aspect ratio and projection matrix
         this.camera.aspect = window.innerWidth / window.innerHeight;
