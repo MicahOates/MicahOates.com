@@ -153,7 +153,6 @@ uniform float activeState;
 
 attribute float size;
 attribute vec3 customColor;
-attribute vec3 normal;
 
 varying vec3 vColor;
 varying float vTime;
