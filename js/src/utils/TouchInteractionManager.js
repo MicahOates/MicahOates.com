@@ -289,7 +289,9 @@ export class TouchInteractionManager {
             "stardust", "cosmos", "galaxy", "nebula", "supernova",
             "quantum", "space", "time", "gravity", "relativity",
             "universe", "dimension", "matter", "energy", "infinity",
-            "quasar", "pulsar", "neutron", "wormhole", "singularity"
+            "quasar", "pulsar", "neutron", "wormhole", "singularity",
+            "interstellar", "fusion", "entropy", "photon", "neutrino",
+            "eclipse", "orbit", "comet", "vacuum", "celestial"
         ];
         const randomText = randomStrings[Math.floor(Math.random() * randomStrings.length)];
         
@@ -402,42 +404,54 @@ export class TouchInteractionManager {
      * @param {number} y - Touch Y position
      */
     createTouchFeedback(x, y) {
-        // If already defined in app, use that instead
-        if (this.app.createTouchRipple) {
-            this.app.createTouchRipple(x, y);
-            return;
-        }
-        
-        // Create enhanced touch feedback with gradients
+        // Create ripple element
         const ripple = document.createElement('div');
         ripple.className = 'touch-ripple';
-        ripple.style.position = 'absolute';
-        ripple.style.width = '30px';
-        ripple.style.height = '30px';
-        ripple.style.borderRadius = '50%';
-        ripple.style.background = 'radial-gradient(circle, rgba(255,255,255,0.7) 0%, rgba(136,68,255,0.4) 70%, transparent 100%)';
-        ripple.style.left = `${x - 15}px`;
-        ripple.style.top = `${y - 15}px`;
-        ripple.style.transform = 'scale(0)';
-        ripple.style.transition = 'transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-        ripple.style.pointerEvents = 'none';
-        ripple.style.zIndex = '9999';
-        ripple.style.boxShadow = '0 0 10px rgba(136, 68, 255, 0.6)';
         
+        // Size based on screen dimensions for better scaling
+        const screenSize = Math.min(window.innerWidth, window.innerHeight);
+        const size = screenSize * 0.15; // 15% of the smaller screen dimension
+        
+        ripple.style.width = `${size}px`;
+        ripple.style.height = `${size}px`;
+        ripple.style.left = `${x}px`;
+        ripple.style.top = `${y}px`;
+        
+        // Add to DOM
         document.body.appendChild(ripple);
         
-        // Start animation with slight delay for better perception
-        setTimeout(() => {
-            ripple.style.transform = 'scale(4)';
-            ripple.style.opacity = '0';
-        }, 10);
+        // Add a smaller, faster secondary ripple for enhanced effect
+        const secondaryRipple = document.createElement('div');
+        secondaryRipple.className = 'touch-ripple';
+        secondaryRipple.style.width = `${size * 0.7}px`;
+        secondaryRipple.style.height = `${size * 0.7}px`;
+        secondaryRipple.style.left = `${x}px`;
+        secondaryRipple.style.top = `${y}px`;
+        secondaryRipple.style.animationDuration = '0.6s';
         
-        // Remove element after animation
+        // Add to DOM with slight delay
+        setTimeout(() => {
+            document.body.appendChild(secondaryRipple);
+        }, 150);
+        
+        // Trigger haptic feedback if available
+        if (window.navigator && window.navigator.vibrate) {
+            // Gentle vibration for 50ms
+            window.navigator.vibrate(50);
+        }
+        
+        // Clean up ripples after animation completes
         setTimeout(() => {
             if (ripple.parentNode) {
-                document.body.removeChild(ripple);
+                ripple.parentNode.removeChild(ripple);
             }
-        }, 600);
+        }, 1000);
+        
+        setTimeout(() => {
+            if (secondaryRipple.parentNode) {
+                secondaryRipple.parentNode.removeChild(secondaryRipple);
+            }
+        }, 800);
     }
     
     /**

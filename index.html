@@ -47,7 +47,8 @@
             <div id="right-click-hint" class="interaction-hint">
                 <span class="desktop-only"><span class="hint-icon">🖱️</span> Right-click</span>
                 <span class="mobile-only"><span class="hint-icon">👆</span> Tap</span>
-                to feed the singularity
+                <span class="hint-text">to feed the singularity</span>
+                <div class="hint-arrow"></div>
             </div>
             <div id="orbs" role="navigation" aria-label="Main navigation">
                 <a href="#about" class="orb" data-label="About" aria-label="About section">About</a>
@@ -284,141 +285,112 @@
                     const randomStrings = [
                         "stardust", "cosmos", "galaxy", "nebula", "supernova",
                         "quantum", "space", "time", "gravity", "relativity",
-                        "universe", "dimension", "matter", "energy", "infinity"
+                        "universe", "dimension", "matter", "energy", "infinity",
+                        "quasar", "pulsar", "neutron", "wormhole", "singularity",
+                        "interstellar", "fusion", "entropy", "photon", "neutrino",
+                        "eclipse", "orbit", "comet", "vacuum", "celestial"
                     ];
                     const randomText = randomStrings[Math.floor(Math.random() * randomStrings.length)];
                     
                     // Create particle effect at the mouse position
-                    if (window.blackHoleApp && window.blackHoleApp.particleSystem) {
-                        // Get mouse position in normalized device coordinates (-1 to +1)
+                    const rect = canvas.getBoundingClientRect();
+                    const mouseX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+                    const mouseY = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+                    
+                    // Check if app and particle system are available
+                    if (window.blackholeApp && window.blackholeApp.particleSystem) {
+                        window.blackholeApp.particleSystem.createParticlesAtMouse(mouseX, mouseY, randomText);
+                        
+                        // Play sound effect if available
+                        if (window.blackholeApp.createDataInputSound) {
+                            window.blackholeApp.createDataInputSound();
+                        }
+                    }
+                });
+                
+                // Add fallback click handler for mobile and accessibility
+                canvas.addEventListener('click', (e) => {
+                    // Skip if touch device (handled by TouchInteractionManager)
+                    if (document.body.classList.contains('touch-device')) {
+                        return;
+                    }
+                    
+                    // Only trigger on left click for accessibility
+                    if (e.button === 0 && e.ctrlKey) {
+                        e.preventDefault();
+                        
+                        // Hide the hint
+                        document.body.classList.add('hint-hidden');
+                        
+                        // Create particles at click position
                         const rect = canvas.getBoundingClientRect();
-                        const mouseX = ((e.clientX - rect.left) / canvas.width) * 2 - 1;
-                        const mouseY = -((e.clientY - rect.top) / canvas.height) * 2 + 1;
+                        const mouseX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+                        const mouseY = -((e.clientY - rect.top) / rect.height) * 2 + 1;
                         
-                        // Create particle effect
-                        window.blackHoleApp.particleSystem.createParticlesAtMouse(mouseX, mouseY, randomText);
+                        const randomStrings = [
+                            "stardust", "cosmos", "galaxy", "nebula", "supernova"
+                        ];
+                        const randomText = randomStrings[Math.floor(Math.random() * randomStrings.length)];
                         
-                        // Play sound effect
-                        if (window.blackHoleApp && window.blackHoleApp.createDataInputSound) {
-                            window.blackHoleApp.createDataInputSound();
+                        // Check if app and particle system are available
+                        if (window.blackholeApp && window.blackholeApp.particleSystem) {
+                            window.blackholeApp.particleSystem.createParticlesAtMouse(mouseX, mouseY, randomText);
+                            
+                            // Play sound effect if available
+                            if (window.blackholeApp.createDataInputSound) {
+                                window.blackholeApp.createDataInputSound();
+                            }
                         }
                     }
                 });
-                
-                // Hide hint after 10 seconds
-                setTimeout(() => {
-                    document.body.classList.add('hint-hidden');
-                }, 10000);
             }
             
-            // Handle section activation via hash
-            function handleHashChange() {
-                const hash = window.location.hash;
-                
-                // Hide all sections
-                sections.forEach(section => {
-                    section.classList.remove('active');
-                });
-                
-                // Show section if hash matches
-                if (hash && hash !== '#') {
-                    const targetSection = document.querySelector(hash);
-                    if (targetSection) {
-                        targetSection.classList.add('active');
-                        // Set focus to the section for keyboard users
-                        targetSection.setAttribute('tabindex', '-1');
-                        targetSection.focus({ preventScroll: true });
-                        
-                        // Play section open sound if app exists
-                        if (window.blackHoleApp && window.blackHoleApp.createSectionOpenSound) {
-                            window.blackHoleApp.createSectionOpenSound();
-                        }
-                        
-                        // Analytics tracking removed for privacy
-                    }
-                }
-            }
-            
-            // Initial check
-            handleHashChange();
-            
-            // Listen for hash changes
-            window.addEventListener('hashchange', handleHashChange);
-            
-            // Close buttons
+            // Add section close handlers
             closeBtns.forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     e.preventDefault();
-                    
-                    // Play section close sound if app exists
-                    if (window.blackHoleApp && window.blackHoleApp.createSectionCloseSound) {
-                        window.blackHoleApp.createSectionCloseSound();
-                    }
-                    
-                    history.pushState("", document.title, window.location.pathname);
-                    handleHashChange();
+                    sections.forEach(section => {
+                        section.classList.remove('active');
+                    });
+                    window.location.hash = '';
                 });
             });
             
-            // Theme toggle keyboard support
-            themeToggle.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    document.body.classList.toggle('light-mode');
-                    const theme = document.body.classList.contains('light-mode') ? 'light' : 'dark';
-                    localStorage.setItem('theme', theme);
-                    // This assumes your app object is accessible here
-                    if (window.blackHoleApp && window.blackHoleApp.updateVisualsForTheme) {
-                        window.blackHoleApp.updateVisualsForTheme(theme);
+            // Add section navigation via hash
+            const openSection = (sectionId) => {
+                sections.forEach(section => {
+                    if (section.id === sectionId) {
+                        section.classList.add('active');
+                    } else {
+                        section.classList.remove('active');
                     }
-                }
-            });
+                });
+            };
             
-            // Check for saved theme preference
-            const savedTheme = localStorage.getItem('theme');
-            if (savedTheme === 'light') {
-                document.body.classList.add('light-mode');
-                if (window.blackHoleApp && window.blackHoleApp.updateVisualsForTheme) {
-                    window.blackHoleApp.updateVisualsForTheme('light');
+            // Check URL hash on load and change
+            const checkHash = () => {
+                const hash = window.location.hash.substring(1);
+                if (hash && document.getElementById(hash)) {
+                    openSection(hash);
+                }
+            };
+            
+            window.addEventListener('hashchange', checkHash);
+            checkHash();
+            
+            // Theme toggle functionality
+            if (themeToggle) {
+                themeToggle.addEventListener('click', () => {
+                    document.body.classList.toggle('light-mode');
+                    localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
+                });
+                
+                // Check saved theme preference
+                const savedTheme = localStorage.getItem('theme');
+                if (savedTheme === 'light') {
+                    document.body.classList.add('light-mode');
                 }
             }
-            
-            // Add keyboard navigation for orbs
-            const orbs = document.querySelectorAll('.orb');
-            orbs.forEach(orb => {
-                // Play sound on hover
-                orb.addEventListener('mouseenter', () => {
-                    if (window.blackHoleApp && window.blackHoleApp.createOrbHighlightSound) {
-                        window.blackHoleApp.createOrbHighlightSound();
-                    }
-                });
-                
-                // Add click event listener
-                orb.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    
-                    // Play highlight sound
-                    if (window.blackHoleApp && window.blackHoleApp.createOrbHighlightSound) {
-                        window.blackHoleApp.createOrbHighlightSound();
-                    }
-                    
-                    // Navigate to the section
-                    window.location.hash = orb.getAttribute('href');
-                });
-                
-                orb.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        
-                        // Play highlight sound
-                        if (window.blackHoleApp && window.blackHoleApp.createOrbHighlightSound) {
-                            window.blackHoleApp.createOrbHighlightSound();
-                        }
-                        
-                        window.location.hash = orb.getAttribute('href');
-                    }
-                });
-            });
         });
     </script>
     
