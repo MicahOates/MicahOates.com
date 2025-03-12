@@ -105,27 +105,29 @@ export class TouchInteractionManager {
                 touchHint = document.createElement('div');
                 touchHint.id = 'mobile-touch-hint';
                 touchHint.className = 'mobile-hint';
-                touchHint.innerHTML = 'Tap to feed the singularity';
-                touchHint.style.position = 'absolute';
-                touchHint.style.bottom = '20px';
-                touchHint.style.left = '50%';
-                touchHint.style.transform = 'translateX(-50%)';
-                touchHint.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-                touchHint.style.color = 'white';
-                touchHint.style.padding = '10px 15px';
-                touchHint.style.borderRadius = '20px';
-                touchHint.style.fontSize = '14px';
-                touchHint.style.zIndex = '1000';
-                touchHint.style.pointerEvents = 'none';
-                touchHint.style.opacity = '1';
-                touchHint.style.transition = 'opacity 0.5s ease-in-out';
+                touchHint.innerHTML = 'Tap anywhere to feed the singularity';
                 
                 document.body.appendChild(touchHint);
                 
-                // Hide the hint after 5 seconds or after first tap
-                setTimeout(() => {
+                // Hide the hint after first tap or 7 seconds
+                const hideHint = () => {
                     touchHint.style.opacity = '0';
-                }, 5000);
+                    setTimeout(() => {
+                        touchHint.remove();
+                    }, 600);
+                    this.app.canvas.removeEventListener('touchstart', hideHintOnTouch);
+                };
+                
+                const hideHintOnTouch = () => {
+                    // Small delay so user can see the hint and their first tap effect together
+                    setTimeout(hideHint, 1500);
+                };
+                
+                // Hide after timeout
+                setTimeout(hideHint, 7000);
+                
+                // Hide after first touch
+                this.app.canvas.addEventListener('touchstart', hideHintOnTouch, { once: true });
             }
         }
     }
@@ -418,156 +420,180 @@ export class TouchInteractionManager {
      * @param {number} y - Touch Y position
      */
     createTouchFeedback(x, y) {
-        // Create ripple element
+        // Create ripple effect
         const ripple = document.createElement('div');
         ripple.className = 'touch-ripple';
         
-        // Size based on screen dimensions for better scaling
-        const screenSize = Math.min(window.innerWidth, window.innerHeight);
-        const size = screenSize * 0.15; // 15% of the smaller screen dimension
+        // Set the ripple size based on device performance
+        const performanceFactor = this.getDevicePerformanceFactor();
+        const baseSize = Math.min(window.innerWidth, window.innerHeight) * 0.15;
+        const rippleSize = baseSize * performanceFactor;
         
-        ripple.style.width = `${size}px`;
-        ripple.style.height = `${size}px`;
+        ripple.style.width = `${rippleSize}px`;
+        ripple.style.height = `${rippleSize}px`;
         ripple.style.left = `${x}px`;
         ripple.style.top = `${y}px`;
         
-        // Add to DOM
         document.body.appendChild(ripple);
         
-        // Add a smaller, faster secondary ripple for enhanced effect
-        const secondaryRipple = document.createElement('div');
-        secondaryRipple.className = 'touch-ripple';
-        secondaryRipple.style.width = `${size * 0.7}px`;
-        secondaryRipple.style.height = `${size * 0.7}px`;
-        secondaryRipple.style.left = `${x}px`;
-        secondaryRipple.style.top = `${y}px`;
-        secondaryRipple.style.animationDuration = '0.6s';
-        
-        // Add to DOM with slight delay
-        setTimeout(() => {
-            document.body.appendChild(secondaryRipple);
-        }, 150);
-        
-        // Create flow particles that move toward the center (black hole)
+        // Create particles that flow from touch position toward the black hole center
         this.createFlowParticles(x, y);
         
-        // Trigger haptic feedback if available
-        if (window.navigator && window.navigator.vibrate) {
-            // Gentle vibration for 50ms
-            window.navigator.vibrate(50);
+        // Remove the ripple when animation completes
+        setTimeout(() => {
+            ripple.remove();
+        }, 1200);
+        
+        // Trigger particle creation in the main app if available
+        if (this.app.createParticlesAtPosition) {
+            // Scale the number of particles based on performance
+            const count = Math.floor(10 * performanceFactor);
+            this.app.createParticlesAtPosition(x, y, count);
         }
         
-        // Clean up ripples after animation completes
-        setTimeout(() => {
-            if (ripple.parentNode) {
-                ripple.parentNode.removeChild(ripple);
-            }
-        }, 1000);
-        
-        setTimeout(() => {
-            if (secondaryRipple.parentNode) {
-                secondaryRipple.parentNode.removeChild(secondaryRipple);
-            }
-        }, 800);
+        // Trigger haptic feedback if available (iOS 13+, Android)
+        this.triggerHapticFeedback('light');
     }
     
     /**
-     * Create flow particles that visually move toward the center of the screen
+     * Trigger haptic feedback if available on the device
+     * @param {string} style - Feedback style: 'light', 'medium', or 'heavy'
+     */
+    triggerHapticFeedback(style = 'light') {
+        try {
+            // Try to use the Vibration API (Android)
+            if (navigator.vibrate) {
+                switch (style) {
+                    case 'light':
+                        navigator.vibrate(10);
+                        break;
+                    case 'medium':
+                        navigator.vibrate(20);
+                        break;
+                    case 'heavy':
+                        navigator.vibrate([30, 10, 30]);
+                        break;
+                    default:
+                        navigator.vibrate(10);
+                }
+            }
+        } catch (e) {
+            console.warn('Haptic feedback not supported', e);
+        }
+    }
+    
+    /**
+     * Create particles that flow from touch position toward the black hole center
      * @param {number} x - Touch X position
      * @param {number} y - Touch Y position
      */
     createFlowParticles(x, y) {
-        // Get screen center (approximate center of black hole)
+        // Get center position (black hole position)
         const centerX = window.innerWidth / 2;
         const centerY = window.innerHeight / 2;
         
-        // Calculate direction vector toward center
+        // Calculate direction vector
         const dirX = centerX - x;
         const dirY = centerY - y;
         
-        // Use object pooling to avoid creating too many DOM elements
-        // This improves performance significantly on mobile devices
-        const particlePool = this.getParticlePool();
+        // Normalize the vector
+        const length = Math.sqrt(dirX * dirX + dirY * dirY);
+        const normX = dirX / length;
+        const normY = dirY / length;
         
-        // Create 3-8 particles based on device performance
-        const particleCount = this.app.config && this.app.config.devicePerformance === 'low' 
-            ? 3 : (this.app.config && this.app.config.devicePerformance === 'medium' ? 5 : 8);
+        // Get performance based particle count
+        const performanceFactor = this.getDevicePerformanceFactor();
+        const particleCount = Math.floor(20 * performanceFactor);
         
+        // Create particle pool if it doesn't exist
+        this.particlePool = this.particlePool || [];
+        
+        // Add particles
         for (let i = 0; i < particleCount; i++) {
-            // Get particle from pool or create new one
-            const particle = particlePool.length > 0 
-                ? particlePool.pop() 
-                : document.createElement('div');
+            // Reuse particles from pool when possible
+            let particle = this.getParticleFromPool();
+            const isNewParticle = !particle;
             
-            particle.className = 'flow-particle';
+            if (isNewParticle) {
+                particle = document.createElement('div');
+                particle.className = 'flow-particle';
+            }
             
-            // Random position around touch point
-            const randomOffsetX = (Math.random() - 0.5) * 40;
-            const randomOffsetY = (Math.random() - 0.5) * 40;
-            
-            particle.style.left = `${x + randomOffsetX}px`;
-            particle.style.top = `${y + randomOffsetY}px`;
-            
-            // Randomize size slightly
-            const size = 3 + Math.random() * 3;
+            // Random size for variety
+            const size = 2 + Math.random() * 4;
             particle.style.width = `${size}px`;
             particle.style.height = `${size}px`;
             
-            // Set CSS variables for the animation
-            // Normalize direction vector and multiply by distance for consistent animation
-            const distance = Math.sqrt(dirX * dirX + dirY * dirY);
-            const moveX = (dirX / distance) * (distance * 0.7); // Move 70% of the way to center
-            const moveY = (dirY / distance) * (distance * 0.7);
+            // Random position around touch point
+            const offsetRadius = 15 + Math.random() * 30;
+            const angle = Math.random() * Math.PI * 2;
+            const offsetX = Math.cos(angle) * offsetRadius;
+            const offsetY = Math.sin(angle) * offsetRadius;
             
+            particle.style.left = `${x + offsetX}px`;
+            particle.style.top = `${y + offsetY}px`;
+            
+            // Calculate final movement based on black hole center
+            const moveDistance = 100 + Math.random() * 150;
+            const moveX = normX * moveDistance;
+            const moveY = normY * moveDistance;
+            
+            // Set custom properties for animation
             particle.style.setProperty('--moveX', `${moveX}px`);
             particle.style.setProperty('--moveY', `${moveY}px`);
             
-            // Random animation delay
-            particle.style.animationDelay = `${Math.random() * 0.2}s`;
+            // Add color variation for visual interest
+            const hue = 250 + Math.random() * 30; // Purple to blue range
+            const lightness = 60 + Math.random() * 20;
+            particle.style.background = `hsla(${hue}, 80%, ${lightness}%, 0.8)`;
             
-            // Add to DOM if not already there
-            if (!particle.parentNode) {
+            // Randomize animation duration
+            const duration = 1 + Math.random() * 0.5;
+            particle.style.animationDuration = `${duration}s`;
+            
+            // Add delay for staggered effect
+            const delay = Math.random() * 0.3;
+            particle.style.animationDelay = `${delay}s`;
+            
+            // Add to DOM if new particle
+            if (isNewParticle) {
                 document.body.appendChild(particle);
             }
             
-            // Store particle for reuse
+            // Return to pool or remove after animation
             setTimeout(() => {
-                if (particle.parentNode) {
-                    particle.parentNode.removeChild(particle);
-                    // Add back to pool for reuse
-                    this.storeParticleInPool(particle);
-                }
-            }, 1300); // Slightly longer than animation duration
+                this.storeParticleInPool(particle);
+            }, (duration + delay) * 1000 + 100);
         }
     }
     
     /**
-     * Get particle from pool or create new array if needed
-     * @returns {Array} Particle pool array
+     * Get a particle from the pool if available
+     * @returns {HTMLElement|null} A particle element or null if none available
      */
-    getParticlePool() {
-        if (!this._particlePool) {
-            this._particlePool = [];
+    getParticleFromPool() {
+        if (this.particlePool && this.particlePool.length > 0) {
+            return this.particlePool.pop();
         }
-        return this._particlePool;
+        return null;
     }
     
     /**
-     * Store particle in pool for reuse
-     * @param {HTMLElement} particle 
+     * Store a particle in the pool for reuse
+     * @param {HTMLElement} particle - The particle element to store
      */
     storeParticleInPool(particle) {
-        if (!this._particlePool) {
-            this._particlePool = [];
+        // Initialize pool if needed
+        this.particlePool = this.particlePool || [];
+        
+        // Remove from DOM
+        if (particle.parentNode) {
+            particle.parentNode.removeChild(particle);
         }
         
-        // Reset particle properties
-        particle.style.animation = 'none';
-        particle.style.left = '-9999px';
-        
-        // Cap pool size to avoid memory leaks
-        if (this._particlePool.length < 20) {
-            this._particlePool.push(particle);
+        // Limit pool size
+        if (this.particlePool.length < 100) {
+            this.particlePool.push(particle);
         }
     }
     

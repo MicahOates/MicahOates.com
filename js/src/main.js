@@ -15,6 +15,34 @@ import { AccessibilityManager } from './utils/AccessibilityManager.js';
 import { WebGLDetector } from './utils/WebGLDetector.js';
 import { ResourceTracker } from './utils/ResourceTracker.js';
 import { WebGLContextManager } from './utils/WebGLContextManager.js';
+import App from './App.js';
+import { TutorialManager } from './ui/TutorialManager.js';
+
+// Initialize the app when the DOM is fully loaded
+document.addEventListener('DOMContentLoaded', () => {
+    // Create main application instance
+    const app = new App();
+    
+    // Initialize app
+    app.init().then(() => {
+        console.log('App initialized successfully');
+        
+        // Initialize performance monitoring
+        const performanceMonitor = new PerformanceMonitor(app);
+        performanceMonitor.startMonitoring();
+        app.performanceMonitor = performanceMonitor;
+        
+        // Initialize touch interaction for mobile devices
+        const touchInteractionManager = new TouchInteractionManager(app);
+        app.touchInteractionManager = touchInteractionManager;
+        
+        // Initialize tutorial for first-time users
+        const tutorialManager = new TutorialManager(app);
+        app.tutorialManager = tutorialManager;
+    }).catch(error => {
+        console.error('Failed to initialize app:', error);
+    });
+});
 
 /**
  * BlackHoleApp - Main application class that manages the 3D visualization
