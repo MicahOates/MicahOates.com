@@ -2430,6 +2430,81 @@ body.touch-device #blackhole-canvas {
     backdrop-filter: blur(2px);
 }
 
+/* Enhanced ripple with directional particles */
+.touch-ripple::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    height: 100%;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(ellipse at center, rgba(68, 170, 255, 0.6) 0%, rgba(68, 170, 255, 0) 70%);
+    border-radius: 50%;
+    opacity: 0.7;
+    animation: pulse-inward 0.8s ease-out forwards;
+    z-index: -1;
+}
+
+/* Flow particles that follow touch */
+.flow-particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: rgba(136, 68, 255, 0.7);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 999;
+    animation: flow-to-center 1.2s cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+    box-shadow: 0 0 6px 2px rgba(136, 68, 255, 0.4);
+}
+
+@keyframes flow-to-center {
+    0% {
+        opacity: 0.8;
+        transform: scale(1);
+    }
+    80% {
+        opacity: 0.6;
+        transform: scale(0.6);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(0.2) translate(var(--moveX), var(--moveY));
+    }
+}
+
+@keyframes pulse-inward {
+    0% {
+        opacity: 0.7;
+        transform: translate(-50%, -50%) scale(0.3);
+    }
+    70% {
+        opacity: 0.5;
+        transform: translate(-50%, -50%) scale(0.7);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.1);
+    }
+}
+
+@keyframes ripple-effect {
+    0% {
+        transform: scale(0);
+        opacity: 0.7;
+    }
+    50% {
+        opacity: 0.5;
+        box-shadow: 0 0 25px 10px rgba(136, 68, 255, 0.6), 0 0 5px 15px rgba(68, 170, 255, 0.5);
+    }
+    100% {
+        transform: scale(3);
+        opacity: 0;
+        box-shadow: 0 0 0 0 rgba(136, 68, 255, 0);
+    }
+}
+
 /* Mobile-specific styles */
 body.touch-device .orb {
     /* Make orbs slightly larger on touch devices for easier tapping */
@@ -2491,4 +2566,227 @@ body.touch-device #blackhole-canvas {
     touch-action: none; /* Prevent browser handling of touch gestures */
     -webkit-user-select: none; /* Prevent text selection */
     user-select: none;
+}
+
+.tutorial-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(4px);
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.5s ease, visibility 0.5s;
+}
+
+.tutorial-overlay.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.tutorial-content {
+    max-width: 400px;
+    width: 90%;
+    padding: 30px;
+    background: rgba(20, 20, 40, 0.7);
+    border-radius: 12px;
+    border: 1px solid rgba(136, 68, 255, 0.6);
+    box-shadow: 0 0 30px rgba(136, 68, 255, 0.5);
+    text-align: center;
+    color: white;
+}
+
+.tutorial-step {
+    margin-bottom: 25px;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.tutorial-step.active {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.tutorial-title {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #8844ff;
+    font-family: 'Orbitron', sans-serif;
+}
+
+.tutorial-description {
+    font-size: 16px;
+    line-height: 1.5;
+    margin-bottom: 20px;
+}
+
+.tutorial-animation {
+    position: relative;
+    width: 180px;
+    height: 180px;
+    margin: 0 auto 20px;
+}
+
+.tutorial-blackhole {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(0, 0, 0, 1) 50%, rgba(20, 20, 40, 0.5) 70%, transparent 100%);
+    box-shadow: 0 0 40px 5px rgba(0, 0, 0, 0.7);
+}
+
+.tutorial-finger {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    transform: translate(-50%, -50%);
+    animation: finger-move 3s infinite cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0.9;
+    z-index: 5;
+}
+
+.tutorial-ripple {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(136, 68, 255, 0.7) 0%, rgba(136, 68, 255, 0.3) 70%, transparent 100%);
+    transform: scale(0);
+    opacity: 0;
+}
+
+.tutorial-particle {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(68, 170, 255, 0.8);
+    opacity: 0;
+}
+
+@keyframes finger-move {
+    0%, 100% {
+        left: 80%;
+        top: 70%;
+        opacity: 1;
+    }
+    5% {
+        transform: translate(-50%, -50%) scale(0.8);
+    }
+    15% {
+        left: 80%;
+        top: 70%;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    20% {
+        opacity: 1;
+    }
+    40%, 60% {
+        left: 50%;
+        top: 50%;
+        opacity: 0;
+    }
+    80% {
+        left: 30%;
+        top: 20%;
+        opacity: 1;
+    }
+    85% {
+        transform: translate(-50%, -50%) scale(0.8);
+    }
+    95% {
+        left: 30%;
+        top: 20%;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+.tutorial-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 20px;
+}
+
+.tutorial-nav-btn {
+    padding: 8px 20px;
+    border-radius: 30px;
+    background: rgba(136, 68, 255, 0.3);
+    border: 1px solid rgba(136, 68, 255, 0.6);
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: inherit;
+    font-size: 14px;
+}
+
+.tutorial-nav-btn:hover, .tutorial-nav-btn:focus {
+    background: rgba(136, 68, 255, 0.5);
+    box-shadow: 0 0 15px rgba(136, 68, 255, 0.4);
+}
+
+.tutorial-dots {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 15px;
+}
+
+.tutorial-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transition: all 0.3s ease;
+}
+
+.tutorial-dot.active {
+    background: rgba(136, 68, 255, 0.8);
+    box-shadow: 0 0 8px rgba(136, 68, 255, 0.5);
+}
+
+body.light-mode .tutorial-content {
+    background: rgba(240, 240, 240, 0.85);
+    border-color: rgba(136, 68, 255, 0.4);
+    color: #333;
+}
+
+body.light-mode .tutorial-title {
+    color: #6633cc;
+}
+
+body.light-mode .tutorial-blackhole {
+    background: radial-gradient(circle, rgba(20, 20, 40, 1) 50%, rgba(60, 60, 100, 0.5) 70%, transparent 100%);
+}
+
+@media (max-width: 768px) {
+    .tutorial-content {
+        padding: 20px;
+    }
+    
+    .tutorial-title {
+        font-size: 18px;
+    }
+    
+    .tutorial-description {
+        font-size: 14px;
+    }
+    
+    .tutorial-animation {
+        width: 150px;
+        height: 150px;
+    }
 }

@@ -254,6 +254,12 @@ export class TouchInteractionManager {
      * @param {TouchEvent} event 
      */
     handleSingleTap(event) {
+        // Apply throttling to prevent too many particle bursts on mobile
+        if (this._lastTapTime && Date.now() - this._lastTapTime < 300) {
+            return; // Skip if tapping too quickly
+        }
+        this._lastTapTime = Date.now();
+        
         // Hide the mobile hint when user taps
         const touchHint = document.getElementById('mobile-touch-hint');
         if (touchHint) {
@@ -300,7 +306,7 @@ export class TouchInteractionManager {
         
         // Create particle effect at the touch position with custom options
         if (this.app.particleSystem) {
-            // Create visual touch feedback first
+            // Create visual touch feedback first with optimization for lower-end devices
             this.createTouchFeedback(clientX, clientY);
             
             // Add a slight delay for better visual sequence
@@ -316,8 +322,7 @@ export class TouchInteractionManager {
     }
     
     /**
-     * Get a performance factor based on device capabilities
-     * Lower values reduce particle count for better performance on weaker devices
+     * Get a performance factor based on device capabilities with more detailed detection
      * @returns {number} Performance factor (0.3 to 1.0)
      */
     getDevicePerformanceFactor() {
@@ -330,19 +335,28 @@ export class TouchInteractionManager {
         // Check for hardware concurrency (available CPU cores)
         const lowCPU = navigator.hardwareConcurrency !== undefined && navigator.hardwareConcurrency < 4;
         
-        // Lower factor for less capable devices
+        // Check if it's a low-end device based on user agent (common budget phones)
+        const lowEndDeviceHints = /Android 4|Android 5|iPhone 5|iPhone 6|iPhone 7|iPhone 8|iPad Mini/i.test(navigator.userAgent);
+        
+        // More granular performance levels
         if (isMobile) {
-            if (lowMemory || lowCPU) {
-                return 0.3; // Significantly reduce particles for weak mobile devices
+            if (lowMemory && lowCPU) {
+                return 0.25; // Very low-end mobile device
+            } else if (lowMemory || lowCPU || lowEndDeviceHints) {
+                return 0.4; // Low-end mobile device
+            } else if (/iPhone X|iPhone 11|iPhone 12|iPhone 13|iPhone 14|iPhone 15|iPad Pro|Galaxy S2|Pixel/i.test(navigator.userAgent)) {
+                return 0.8; // High-end mobile device
             }
-            return 0.5; // Reduce particles for average mobile devices
+            return 0.6; // Average mobile device
         }
         
-        if (lowMemory || lowCPU) {
-            return 0.7; // Slightly reduce particles for weaker desktop devices
+        if (lowMemory && lowCPU) {
+            return 0.6; // Low-end desktop
+        } else if (lowMemory || lowCPU) {
+            return 0.8; // Medium desktop
         }
         
-        return 1.0; // Full particle count for powerful devices
+        return 1.0; // High-end desktop
     }
     
     /**
@@ -434,6 +448,9 @@ export class TouchInteractionManager {
             document.body.appendChild(secondaryRipple);
         }, 150);
         
+        // Create flow particles that move toward the center (black hole)
+        this.createFlowParticles(x, y);
+        
         // Trigger haptic feedback if available
         if (window.navigator && window.navigator.vibrate) {
             // Gentle vibration for 50ms
@@ -452,6 +469,106 @@ export class TouchInteractionManager {
                 secondaryRipple.parentNode.removeChild(secondaryRipple);
             }
         }, 800);
+    }
+    
+    /**
+     * Create flow particles that visually move toward the center of the screen
+     * @param {number} x - Touch X position
+     * @param {number} y - Touch Y position
+     */
+    createFlowParticles(x, y) {
+        // Get screen center (approximate center of black hole)
+        const centerX = window.innerWidth / 2;
+        const centerY = window.innerHeight / 2;
+        
+        // Calculate direction vector toward center
+        const dirX = centerX - x;
+        const dirY = centerY - y;
+        
+        // Use object pooling to avoid creating too many DOM elements
+        // This improves performance significantly on mobile devices
+        const particlePool = this.getParticlePool();
+        
+        // Create 3-8 particles based on device performance
+        const particleCount = this.app.config && this.app.config.devicePerformance === 'low' 
+            ? 3 : (this.app.config && this.app.config.devicePerformance === 'medium' ? 5 : 8);
+        
+        for (let i = 0; i < particleCount; i++) {
+            // Get particle from pool or create new one
+            const particle = particlePool.length > 0 
+                ? particlePool.pop() 
+                : document.createElement('div');
+            
+            particle.className = 'flow-particle';
+            
+            // Random position around touch point
+            const randomOffsetX = (Math.random() - 0.5) * 40;
+            const randomOffsetY = (Math.random() - 0.5) * 40;
+            
+            particle.style.left = `${x + randomOffsetX}px`;
+            particle.style.top = `${y + randomOffsetY}px`;
+            
+            // Randomize size slightly
+            const size = 3 + Math.random() * 3;
+            particle.style.width = `${size}px`;
+            particle.style.height = `${size}px`;
+            
+            // Set CSS variables for the animation
+            // Normalize direction vector and multiply by distance for consistent animation
+            const distance = Math.sqrt(dirX * dirX + dirY * dirY);
+            const moveX = (dirX / distance) * (distance * 0.7); // Move 70% of the way to center
+            const moveY = (dirY / distance) * (distance * 0.7);
+            
+            particle.style.setProperty('--moveX', `${moveX}px`);
+            particle.style.setProperty('--moveY', `${moveY}px`);
+            
+            // Random animation delay
+            particle.style.animationDelay = `${Math.random() * 0.2}s`;
+            
+            // Add to DOM if not already there
+            if (!particle.parentNode) {
+                document.body.appendChild(particle);
+            }
+            
+            // Store particle for reuse
+            setTimeout(() => {
+                if (particle.parentNode) {
+                    particle.parentNode.removeChild(particle);
+                    // Add back to pool for reuse
+                    this.storeParticleInPool(particle);
+                }
+            }, 1300); // Slightly longer than animation duration
+        }
+    }
+    
+    /**
+     * Get particle from pool or create new array if needed
+     * @returns {Array} Particle pool array
+     */
+    getParticlePool() {
+        if (!this._particlePool) {
+            this._particlePool = [];
+        }
+        return this._particlePool;
+    }
+    
+    /**
+     * Store particle in pool for reuse
+     * @param {HTMLElement} particle 
+     */
+    storeParticleInPool(particle) {
+        if (!this._particlePool) {
+            this._particlePool = [];
+        }
+        
+        // Reset particle properties
+        particle.style.animation = 'none';
+        particle.style.left = '-9999px';
+        
+        // Cap pool size to avoid memory leaks
+        if (this._particlePool.length < 20) {
+            this._particlePool.push(particle);
+        }
     }
     
     /**
