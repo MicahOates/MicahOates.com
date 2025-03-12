@@ -21,6 +21,7 @@ export class TouchInteractionManager {
         // Touch event flags
         this.isTouching = false;
         this.isPinching = false;
+        this.touchMoved = false; // New flag to track if touch moved
         
         // Double tap detection
         this.lastTap = 0;
@@ -59,6 +60,74 @@ export class TouchInteractionManager {
         }
         
         console.log('TouchInteractionManager initialized');
+        
+        // Add "Touch to feed" hint for mobile users
+        this.showMobileTouchHint();
+        
+        // Add class to body for CSS targeting
+        this.detectTouchDevice();
+    }
+    
+    /**
+     * Detect if the device is touch-capable and add appropriate class to body
+     */
+    detectTouchDevice() {
+        // Multiple checks to detect touch capability
+        const isTouchDevice = (
+            ('ontouchstart' in window) ||
+            (navigator.maxTouchPoints > 0) ||
+            (navigator.msMaxTouchPoints > 0) ||
+            /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+        );
+        
+        if (isTouchDevice) {
+            document.body.classList.add('touch-device');
+            console.log('Touch device detected');
+        } else {
+            document.body.classList.add('non-touch-device');
+            console.log('Non-touch device detected');
+        }
+        
+        return isTouchDevice;
+    }
+    
+    /**
+     * Show a hint for mobile users that they can tap to feed the singularity
+     */
+    showMobileTouchHint() {
+        // Check if we're on a mobile device
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        if (isMobile) {
+            // Create a hint element if it doesn't exist
+            let touchHint = document.getElementById('mobile-touch-hint');
+            if (!touchHint) {
+                touchHint = document.createElement('div');
+                touchHint.id = 'mobile-touch-hint';
+                touchHint.className = 'mobile-hint';
+                touchHint.innerHTML = 'Tap to feed the singularity';
+                touchHint.style.position = 'absolute';
+                touchHint.style.bottom = '20px';
+                touchHint.style.left = '50%';
+                touchHint.style.transform = 'translateX(-50%)';
+                touchHint.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+                touchHint.style.color = 'white';
+                touchHint.style.padding = '10px 15px';
+                touchHint.style.borderRadius = '20px';
+                touchHint.style.fontSize = '14px';
+                touchHint.style.zIndex = '1000';
+                touchHint.style.pointerEvents = 'none';
+                touchHint.style.opacity = '1';
+                touchHint.style.transition = 'opacity 0.5s ease-in-out';
+                
+                document.body.appendChild(touchHint);
+                
+                // Hide the hint after 5 seconds or after first tap
+                setTimeout(() => {
+                    touchHint.style.opacity = '0';
+                }, 5000);
+            }
+        }
     }
     
     /**
@@ -70,6 +139,7 @@ export class TouchInteractionManager {
         
         event.preventDefault();
         this.isTouching = true;
+        this.touchMoved = false; // Reset touch moved flag
         
         // Record initial touch position
         if (event.touches.length === 1) {
@@ -108,6 +178,9 @@ export class TouchInteractionManager {
             const deltaY = touchY - this.touchStartPosition.y;
             
             if (this.app.controls && Math.abs(deltaX) + Math.abs(deltaY) > 2) {
+                // Mark that the touch has moved significantly
+                this.touchMoved = true;
+                
                 // Adjust rotation speed based on screen size
                 const screenFactor = Math.min(window.innerWidth, window.innerHeight) / 1000;
                 const rotationSpeed = 0.15 * screenFactor;
@@ -129,6 +202,7 @@ export class TouchInteractionManager {
         }
         // Handle pinch zoom (two fingers)
         else if (event.touches.length === 2 && this.zoomEnabled) {
+            this.touchMoved = true; // Mark that the touch has moved
             const currentDistance = this.getPinchDistance(event);
             const distanceDelta = currentDistance - this.pinchStartDistance;
             
@@ -153,13 +227,19 @@ export class TouchInteractionManager {
      * @param {TouchEvent} event
      */
     onTouchEnd(event) {
-        // Check for double tap
-        this.checkDoubleTap(event);
+        // Check for double tap first
+        const isDoubleTap = this.checkDoubleTap(event);
+        
+        // Check for single tap if touch didn't move much and it's not a double tap
+        if (this.isTouching && !this.touchMoved && !isDoubleTap && event.touches.length === 0) {
+            this.handleSingleTap(event);
+        }
         
         // Reset touch state if all fingers are lifted
         if (event.touches.length === 0) {
             this.isTouching = false;
             this.isPinching = false;
+            this.touchMoved = false;
         }
         // Update for remaining touch points
         else if (event.touches.length === 1) {
@@ -170,6 +250,100 @@ export class TouchInteractionManager {
     }
     
     /**
+     * Handle single tap to create particles (similar to right-click)
+     * @param {TouchEvent} event 
+     */
+    handleSingleTap(event) {
+        // Hide the mobile hint when user taps
+        const touchHint = document.getElementById('mobile-touch-hint');
+        if (touchHint) {
+            touchHint.style.opacity = '0';
+        }
+        
+        // Also hide the desktop hint
+        document.body.classList.add('hint-hidden');
+        
+        // Get touch position
+        let clientX, clientY;
+        if (event.changedTouches && event.changedTouches.length > 0) {
+            clientX = event.changedTouches[0].clientX;
+            clientY = event.changedTouches[0].clientY;
+        } else {
+            return; // No touch information available
+        }
+        
+        // Get canvas to calculate normalized device coordinates
+        const canvas = this.app.canvas;
+        if (!canvas) return;
+        
+        const rect = canvas.getBoundingClientRect();
+        const canvasWidth = rect.width;
+        const canvasHeight = rect.height;
+        
+        // Calculate normalized device coordinates with better precision
+        const mouseX = ((clientX - rect.left) / canvasWidth) * 2 - 1;
+        const mouseY = -((clientY - rect.top) / canvasHeight) * 2 + 1;
+        
+        // Generate a random string to simulate the input text
+        const randomStrings = [
+            "stardust", "cosmos", "galaxy", "nebula", "supernova",
+            "quantum", "space", "time", "gravity", "relativity",
+            "universe", "dimension", "matter", "energy", "infinity",
+            "quasar", "pulsar", "neutron", "wormhole", "singularity"
+        ];
+        const randomText = randomStrings[Math.floor(Math.random() * randomStrings.length)];
+        
+        // Determine appropriate particle count based on device performance
+        const particleFactor = this.getDevicePerformanceFactor();
+        
+        // Create particle effect at the touch position with custom options
+        if (this.app.particleSystem) {
+            // Create visual touch feedback first
+            this.createTouchFeedback(clientX, clientY);
+            
+            // Add a slight delay for better visual sequence
+            setTimeout(() => {
+                this.app.particleSystem.createParticlesAtMouse(mouseX, mouseY, randomText, particleFactor);
+                
+                // Play sound effect with optimized loading
+                if (this.app.createDataInputSound) {
+                    this.app.createDataInputSound(0.7); // Reduce volume slightly on mobile
+                }
+            }, 50);
+        }
+    }
+    
+    /**
+     * Get a performance factor based on device capabilities
+     * Lower values reduce particle count for better performance on weaker devices
+     * @returns {number} Performance factor (0.3 to 1.0)
+     */
+    getDevicePerformanceFactor() {
+        // Check if we're on a mobile device
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        // Check for device memory if available (Chrome only)
+        const lowMemory = navigator.deviceMemory !== undefined && navigator.deviceMemory < 4;
+        
+        // Check for hardware concurrency (available CPU cores)
+        const lowCPU = navigator.hardwareConcurrency !== undefined && navigator.hardwareConcurrency < 4;
+        
+        // Lower factor for less capable devices
+        if (isMobile) {
+            if (lowMemory || lowCPU) {
+                return 0.3; // Significantly reduce particles for weak mobile devices
+            }
+            return 0.5; // Reduce particles for average mobile devices
+        }
+        
+        if (lowMemory || lowCPU) {
+            return 0.7; // Slightly reduce particles for weaker desktop devices
+        }
+        
+        return 1.0; // Full particle count for powerful devices
+    }
+    
+    /**
      * Check for double tap gesture
      * @param {TouchEvent} event 
      */
@@ -177,15 +351,20 @@ export class TouchInteractionManager {
         const currentTime = new Date().getTime();
         const tapLength = currentTime - this.lastTap;
         
-        if (tapLength < this.doubleTapDelay && tapLength > 0) {
+        // Only check for double tap if the touch didn't move much
+        if (!this.touchMoved && tapLength < this.doubleTapDelay && tapLength > 0) {
             // Double tap detected
             if (!this.isPinching && event.target === this.app.canvas) {
                 this.handleDoubleTap(event);
                 event.preventDefault();
+                
+                // If double tap is detected, don't process as single tap
+                return true;
             }
         }
         
         this.lastTap = currentTime;
+        return false;
     }
     
     /**
@@ -229,33 +408,36 @@ export class TouchInteractionManager {
             return;
         }
         
-        // Create minimal touch feedback if not already implemented
+        // Create enhanced touch feedback with gradients
         const ripple = document.createElement('div');
         ripple.className = 'touch-ripple';
         ripple.style.position = 'absolute';
-        ripple.style.width = '20px';
-        ripple.style.height = '20px';
+        ripple.style.width = '30px';
+        ripple.style.height = '30px';
         ripple.style.borderRadius = '50%';
-        ripple.style.backgroundColor = 'rgba(255, 255, 255, 0.4)';
-        ripple.style.left = `${x - 10}px`;
-        ripple.style.top = `${y - 10}px`;
+        ripple.style.background = 'radial-gradient(circle, rgba(255,255,255,0.7) 0%, rgba(136,68,255,0.4) 70%, transparent 100%)';
+        ripple.style.left = `${x - 15}px`;
+        ripple.style.top = `${y - 15}px`;
         ripple.style.transform = 'scale(0)';
-        ripple.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out';
+        ripple.style.transition = 'transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
         ripple.style.pointerEvents = 'none';
         ripple.style.zIndex = '9999';
+        ripple.style.boxShadow = '0 0 10px rgba(136, 68, 255, 0.6)';
         
         document.body.appendChild(ripple);
         
-        // Start animation
+        // Start animation with slight delay for better perception
         setTimeout(() => {
-            ripple.style.transform = 'scale(3)';
+            ripple.style.transform = 'scale(4)';
             ripple.style.opacity = '0';
         }, 10);
         
         // Remove element after animation
         setTimeout(() => {
-            document.body.removeChild(ripple);
-        }, 300);
+            if (ripple.parentNode) {
+                document.body.removeChild(ripple);
+            }
+        }, 600);
     }
     
     /**

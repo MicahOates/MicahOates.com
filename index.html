@@ -44,7 +44,11 @@
     <div id="container">
         <canvas id="blackhole-canvas"></canvas>
         <div id="ui">
-            <div id="right-click-hint">Right-click to feed the singularity</div>
+            <div id="right-click-hint" class="interaction-hint">
+                <span class="desktop-only"><span class="hint-icon">🖱️</span> Right-click</span>
+                <span class="mobile-only"><span class="hint-icon">👆</span> Tap</span>
+                to feed the singularity
+            </div>
             <div id="orbs" role="navigation" aria-label="Main navigation">
                 <a href="#about" class="orb" data-label="About" aria-label="About section">About</a>
                 <a href="#contact" class="orb" data-label="Contact" aria-label="Contact section">Contact</a>
@@ -53,6 +57,21 @@
             </div>
         </div>
         <div id="theme-toggle" title="Toggle light/dark mode" role="button" tabindex="0" aria-label="Toggle light and dark mode"></div>
+        
+        <!-- Enhanced Loader -->
+        <div id="enhanced-loader" class="enhanced-loader">
+            <div class="loader-content">
+                <div class="cosmic-loader">
+                    <div class="black-hole-loader"></div>
+                    <div class="accretion-disk"></div>
+                    <div class="particles" id="loader-particles"></div>
+                </div>
+                <div class="loader-text">Generating cosmic singularity...</div>
+                <div class="loader-progress">
+                    <div class="loader-progress-bar" id="loader-progress-bar"></div>
+                </div>
+            </div>
+        </div>
     </div>
     
     <!-- Content Sections -->
@@ -166,6 +185,70 @@
     <script>
         // No analytics tracking - removed for privacy
         window.plausible = function() {}; // Empty function to prevent errors
+    </script>
+    
+    <!-- Loader Animation -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Create dynamic particles for the loader
+            const particlesContainer = document.getElementById('loader-particles');
+            const progressBar = document.getElementById('loader-progress-bar');
+            const enhancedLoader = document.getElementById('enhanced-loader');
+            const particleCount = window.innerWidth < 768 ? 15 : 25;
+            
+            if (particlesContainer) {
+                // Create animated particles flowing into the black hole
+                for (let i = 0; i < particleCount; i++) {
+                    const particle = document.createElement('div');
+                    particle.className = 'particle';
+                    
+                    // Set random starting position around the edge
+                    const angle = Math.random() * Math.PI * 2;
+                    const distance = 35 + Math.random() * 15;
+                    const startX = Math.cos(angle) * distance;
+                    const startY = Math.sin(angle) * distance;
+                    
+                    // Set CSS variables for the animation
+                    particle.style.setProperty('--startX', `${startX}px`);
+                    particle.style.setProperty('--startY', `${startY}px`);
+                    
+                    // Set random properties
+                    particle.style.width = `${2 + Math.random() * 3}px`;
+                    particle.style.height = particle.style.width;
+                    particle.style.left = '50%';
+                    particle.style.top = '50%';
+                    particle.style.animationDelay = `${Math.random() * 3}s`;
+                    particle.style.animationDuration = `${2 + Math.random() * 2}s`;
+                    
+                    particlesContainer.appendChild(particle);
+                }
+            }
+            
+            // Simulate loading progress
+            let progress = 0;
+            const totalDuration = 2500; // ms
+            const interval = 50; // ms
+            const increment = interval / totalDuration * 100;
+            
+            const progressInterval = setInterval(() => {
+                progress += increment;
+                if (progress >= 100) {
+                    progress = 100;
+                    clearInterval(progressInterval);
+                    
+                    // Hide loader after a short delay
+                    setTimeout(() => {
+                        if (enhancedLoader) {
+                            enhancedLoader.classList.add('hidden');
+                        }
+                    }, 300);
+                }
+                
+                if (progressBar) {
+                    progressBar.style.width = `${progress}%`;
+                }
+            }, interval);
+        });
     </script>
     
     <!-- Update Three.js loading to use ES modules format -->
@@ -366,5 +449,18 @@
         }
     }
     </script>
+
+    <style>
+        /* Fallback detection for browsers that don't support JS-based detection */
+        @media (hover: hover) and (pointer: fine) {
+            .mobile-only { display: none; }
+        }
+        
+        @media (hover: none) and (pointer: coarse) {
+            .desktop-only { display: none; }
+        }
+        
+        /* These classes will be overridden by our JS-based detection */
+    </style>
 </body>
 </html>

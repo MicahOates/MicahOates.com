@@ -436,12 +436,13 @@ export class ParticleSystem {
     }
     
     /**
-     * Create particles at mouse position
-     * @param {number} mouseX - Normalized mouse X position (-1 to 1)
-     * @param {number} mouseY - Normalized mouse Y position (-1 to 1)
-     * @param {string} text - Optional text to use for particle count
+     * Create particles at mouse position (for right-click or touch events)
+     * @param {number} mouseX - Normalized device X coordinate (-1 to 1)
+     * @param {number} mouseY - Normalized device Y coordinate (-1 to 1)
+     * @param {string} text - Text to use for particle generation
+     * @param {number} performanceFactor - Optional factor to adjust particle count (0.0-1.0)
      */
-    createParticlesAtMouse(mouseX, mouseY, text = "stardust") {
+    createParticlesAtMouse(mouseX, mouseY, text = "stardust", performanceFactor = 1.0) {
         try {
             console.log("Creating particles at mouse position:", mouseX, mouseY);
             
@@ -473,12 +474,20 @@ export class ParticleSystem {
             console.log("Start position for particles:", startPosition);
             
             // Number of particles based on text length and device performance
-            const particleCount = Math.min(100, Math.max(20, text.length * 5));
-            console.log("Creating", particleCount, "particles");
+            // Apply performance factor to reduce particle count on less capable devices
+            const baseParticleCount = Math.min(100, Math.max(20, text.length * 5));
+            const particleCount = Math.round(baseParticleCount * performanceFactor);
+            console.log("Creating", particleCount, "particles (performance factor:", performanceFactor, ")");
+            
+            // Calculate base particle burst count based on performance
+            const burstCount = Math.max(5, Math.round(15 * performanceFactor));
             
             // Create a burst of particles
-            for (let i = 0; i < 15; i++) {
+            for (let i = 0; i < burstCount; i++) {
                 // Delay each particle slightly for a stream effect
+                // Adjust delay based on performance factor (faster bursts on low-end devices)
+                const delay = i * (40 + 20 * performanceFactor);
+                
                 setTimeout(() => {
                     // Slightly randomize start position
                     const offset = 1.0;
@@ -492,23 +501,27 @@ export class ParticleSystem {
                     this.createDataStreamEffect(
                         startPos, 
                         blackHolePosition,
-                        2.0 + Math.random() * 2.0, // Random duration between 2-4 seconds
+                        1.5 + Math.random() * 2.0 * performanceFactor, // Scale duration with performance
                         () => {
                             // Create a small particle burst at the black hole when particles arrive
-                            if (Math.random() > 0.5) { // Higher chance of burst for mouse interaction
-                                this.createQuantumFluctuationEffect(blackHolePosition, 0.7);
+                            // Reduce probability on lower-end devices
+                            if (Math.random() > (0.5 - 0.3 * performanceFactor)) {
+                                this.createQuantumFluctuationEffect(
+                                    blackHolePosition, 
+                                    0.7 * performanceFactor // Reduce intensity on lower-end devices
+                                );
                             }
                         }
                     );
                     
                     // Increase overall particle activity
-                    this.increaseParticleActivity(0.15);
+                    this.increaseParticleActivity(0.15 * performanceFactor);
                     
-                }, i * 50); // Faster sequence for mouse interaction
+                }, delay);
             }
             
             // Create one quantum fluctuation at the start position
-            this.createQuantumFluctuationEffect(startPosition, 1.0);
+            this.createQuantumFluctuationEffect(startPosition, performanceFactor);
             console.log("Initial quantum fluctuation created");
             
         } catch (error) {

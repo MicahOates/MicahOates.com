@@ -66,6 +66,199 @@ body {
     z-index: 10;
 }
 
+/* Enhanced Loading Indicator */
+.enhanced-loader {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.9);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    opacity: 1;
+    transition: opacity 0.8s ease-out;
+    backdrop-filter: blur(5px);
+}
+
+.enhanced-loader.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.loader-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 80%;
+    text-align: center;
+}
+
+.cosmic-loader {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    margin-bottom: 25px;
+}
+
+.black-hole-loader {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    top: 50%;
+    left: 50%;
+    margin-top: -20px;
+    margin-left: -20px;
+    border-radius: 50%;
+    background: #000;
+    box-shadow: 0 0 30px rgba(138, 43, 226, 0.8), 
+                inset 0 0 15px rgba(138, 43, 226, 0.5);
+    animation: pulse-loader 2s ease-in-out infinite alternate;
+}
+
+.accretion-disk {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    top: 50%;
+    left: 50%;
+    margin-top: -50px;
+    margin-left: -50px;
+    border-radius: 50%;
+    border: 4px solid transparent;
+    border-top: 4px solid rgba(138, 43, 226, 0.8);
+    border-left: 4px solid rgba(138, 43, 226, 0.2);
+    border-right: 4px solid rgba(138, 43, 226, 0.5);
+    animation: spin-loader 3s linear infinite;
+}
+
+.accretion-disk::before {
+    content: '';
+    position: absolute;
+    width: 80px;
+    height: 80px;
+    top: -4px;
+    left: -4px;
+    border-radius: 50%;
+    border: 4px solid transparent;
+    border-bottom: 4px solid rgba(65, 105, 225, 0.8);
+    border-right: 4px solid rgba(65, 105, 225, 0.2);
+    animation: spin-loader 4s linear infinite reverse;
+}
+
+.particles {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+}
+
+.particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: white;
+    border-radius: 50%;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+    opacity: 0.7;
+    animation: particle-move 3s ease-in infinite;
+}
+
+.loader-text {
+    color: white;
+    font-family: 'Orbitron', sans-serif;
+    margin-bottom: 30px;
+    font-size: 1.2rem;
+    text-shadow: 0 0 10px rgba(138, 43, 226, 0.8);
+    letter-spacing: 1px;
+}
+
+.loader-progress {
+    width: 250px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+    position: relative;
+}
+
+.loader-progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, rgba(138, 43, 226, 0.8), rgba(65, 105, 225, 0.8));
+    border-radius: 2px;
+    transition: width 0.3s ease-out;
+    box-shadow: 0 0 10px rgba(138, 43, 226, 0.5);
+}
+
+@keyframes pulse-loader {
+    0% {
+        box-shadow: 0 0 30px rgba(138, 43, 226, 0.8),
+                    inset 0 0 15px rgba(138, 43, 226, 0.5);
+        transform: scale(0.9);
+    }
+    100% {
+        box-shadow: 0 0 50px rgba(138, 43, 226, 1),
+                    inset 0 0 20px rgba(138, 43, 226, 0.8);
+        transform: scale(1.1);
+    }
+}
+
+@keyframes spin-loader {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes particle-move {
+    0% {
+        transform: translate(var(--startX), var(--startY)) scale(1);
+        opacity: 0;
+    }
+    20% {
+        opacity: 0.7;
+    }
+    100% {
+        transform: translate(0, 0) scale(0.1);
+        opacity: 0;
+    }
+}
+
+/* Handle mobile responsiveness */
+@media (max-width: 768px) {
+    .loader-text {
+        font-size: 1rem;
+    }
+    
+    .cosmic-loader {
+        width: 80px;
+        height: 80px;
+    }
+    
+    .accretion-disk {
+        width: 80px;
+        height: 80px;
+        margin-top: -40px;
+        margin-left: -40px;
+    }
+    
+    .accretion-disk::before {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .loader-progress {
+        width: 200px;
+    }
+}
+
 /* Loading Screen */
 #loader {
     position: fixed;
@@ -1686,9 +1879,23 @@ body.light-mode .highlight-frame-dragging {
 }
 
 .hint-icon {
-    font-size: 48px;
-    margin-bottom: 15px;
-    animation: pulse 1.5s infinite;
+    display: inline-block;
+    margin-right: 5px;
+    font-size: 1.1em;
+    vertical-align: middle;
+    position: relative;
+    top: -1px;
+    filter: drop-shadow(0 0 3px rgba(136, 68, 255, 0.7));
+    animation: icon-float 2s ease-in-out infinite alternate;
+}
+
+@keyframes icon-float {
+    0% {
+        transform: translateY(0);
+    }
+    100% {
+        transform: translateY(-3px);
+    }
 }
 
 .hint-text {
@@ -1943,42 +2150,130 @@ body.light-mode .highlight-frame-dragging {
     }
 }
 
-#right-click-hint {
+/* Enhanced interaction hint with improved visual appeal */
+.interaction-hint {
     position: fixed;
     bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
-    background-color: rgba(0, 0, 0, 0.6);
+    background-color: rgba(0, 0, 0, 0.7);
     color: white;
     font-family: 'Orbitron', sans-serif;
     font-size: 0.9rem;
-    padding: 8px 15px;
-    border-radius: 20px;
-    border: 1px solid rgba(136, 68, 255, 0.6);
+    padding: 10px 20px;
+    border-radius: 30px;
+    border: 1px solid rgba(136, 68, 255, 0.7);
     pointer-events: none;
-    opacity: 0.8;
-    transition: opacity 0.5s ease;
+    opacity: 0.9;
+    transition: opacity 0.5s ease, transform 0.5s ease;
     z-index: 100;
     text-align: center;
-    backdrop-filter: blur(5px);
-    box-shadow: 0 0 15px rgba(136, 68, 255, 0.3);
-    animation: pulse 2s infinite alternate;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 0 20px rgba(136, 68, 255, 0.4), inset 0 0 8px rgba(136, 68, 255, 0.3);
+    animation: hint-pulse 3s infinite alternate;
+    letter-spacing: 0.5px;
 }
 
-/* Add a subtle animation to draw attention */
-@keyframes pulse {
+/* More noticeable animation for the hint */
+@keyframes hint-pulse {
     0% {
-        opacity: 0.6;
-        transform: translateX(-50%) scale(0.98);
+        opacity: 0.7;
+        transform: translateX(-50%) scale(0.97);
+        box-shadow: 0 0 15px rgba(136, 68, 255, 0.3), inset 0 0 5px rgba(136, 68, 255, 0.2);
     }
     100% {
-        opacity: 0.9;
-        transform: translateX(-50%) scale(1.02);
+        opacity: 1;
+        transform: translateX(-50%) scale(1.03);
+        box-shadow: 0 0 25px rgba(136, 68, 255, 0.5), inset 0 0 10px rgba(136, 68, 255, 0.4);
     }
 }
 
-/* Hide the hint after 10 seconds */
+/* Keep original ID for backwards compatibility */
+#right-click-hint {
+    /* Inherits from .interaction-hint */
+}
+
+/* Enhanced hide animation with fade and slide */
+body.hint-hidden .interaction-hint,
 body.hint-hidden #right-click-hint {
     opacity: 0;
+    transform: translateX(-50%) translateY(20px);
     pointer-events: none;
+}
+
+/* Add ripple effect for touch feedback */
+.touch-ripple {
+    position: absolute;
+    border-radius: 50%;
+    transform: scale(0);
+    background: radial-gradient(circle, rgba(255,255,255,0.7) 0%, rgba(136,68,255,0.4) 70%, transparent 100%);
+    animation: ripple-effect 0.8s ease-out forwards;
+    pointer-events: none;
+    z-index: 9000;
+}
+
+@keyframes ripple-effect {
+    0% {
+        transform: scale(0);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(4);
+        opacity: 0;
+    }
+}
+
+/* Improved touch-specific styling */
+body.touch-device .orb {
+    /* Make orbs larger and more touch-friendly */
+    transform: scale(1.25);
+    margin: 0 15px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+body.touch-device .orb:active {
+    transform: scale(1.15);
+    box-shadow: 0 0 20px rgba(136, 68, 255, 0.5);
+}
+
+/* Remove tap highlight color on mobile */
+body.touch-device * {
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Touch-specific improvements */
+body.touch-device * {
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Responsiveness for mobile devices */
+@media (max-width: 768px) {
+    .interaction-hint {
+        font-size: 0.8rem;
+        padding: 8px 16px;
+        bottom: 15px;
+    }
+}
+
+/* Touch device specific styling */
+body.touch-device .desktop-only {
+    display: none;
+}
+
+body.non-touch-device .mobile-only {
+    display: none;
+}
+
+/* Override media queries with feature detection */
+body.touch-device .interaction-hint .mobile-only {
+    display: inline;
+}
+
+body.non-touch-device .interaction-hint .desktop-only {
+    display: inline;
+}
+
+body.touch-device #blackhole-canvas {
+    /* Ensure canvas receives touch events properly */
+    touch-action: manipulation;
 }
