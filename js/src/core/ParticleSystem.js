@@ -354,8 +354,8 @@ export class ParticleSystem {
     }
     
     /**
-     * Create data particles that get pulled into the black hole
-     * @param {string} input - User input from the "Feed the Singularity" field
+     * Create data particles based on user input
+     * @param {string} input - User input for particle visualization
      */
     createDataParticles(input) {
         console.log("createDataParticles called with input:", input);
@@ -555,5 +555,56 @@ export class ParticleSystem {
         });
         
         this.activeEffects = [];
+    }
+    
+    /**
+     * Create a visual particle effect at a specific position
+     * @param {number} x - Normalized device coordinate X (-1 to 1)
+     * @param {number} y - Normalized device coordinate Y (-1 to 1)
+     * @param {number} count - Number of particles to create
+     */
+    createVisualEffect(x, y, count = 10) {
+        // Default to 10 particles if not specified
+        count = count || 10;
+        
+        // Create a raycaster to determine the 3D position
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(new THREE.Vector2(x, y), this.app.camera);
+        
+        // Calculate direction and position
+        const direction = raycaster.ray.direction.clone();
+        
+        // Create particles with visual properties
+        for (let i = 0; i < count; i++) {
+            // Create a particle with random variations
+            const size = 0.1 + Math.random() * 0.2;
+            const speed = 0.02 + Math.random() * 0.05;
+            const color = new THREE.Color(
+                0.5 + Math.random() * 0.5, 
+                0.5 + Math.random() * 0.5,
+                0.8 + Math.random() * 0.2
+            );
+            
+            // Add some randomness to direction
+            const spreadFactor = 0.2;
+            const randDir = direction.clone().add(
+                new THREE.Vector3(
+                    (Math.random() - 0.5) * spreadFactor,
+                    (Math.random() - 0.5) * spreadFactor,
+                    (Math.random() - 0.5) * spreadFactor
+                )
+            ).normalize();
+            
+            // Create and add the particle
+            this.createParticle({
+                position: this.app.camera.position.clone().add(
+                    randDir.clone().multiplyScalar(2)
+                ),
+                velocity: randDir.clone().multiplyScalar(speed),
+                color: color,
+                size: size,
+                lifetime: 2 + Math.random() * 2
+            });
+        }
     }
 } 

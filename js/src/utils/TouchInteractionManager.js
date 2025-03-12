@@ -92,7 +92,7 @@ export class TouchInteractionManager {
     }
     
     /**
-     * Show a hint for mobile users that they can tap to feed the singularity
+     * Show a hint for mobile users about interactive features
      */
     showMobileTouchHint() {
         // Check if we're on a mobile device
@@ -105,7 +105,7 @@ export class TouchInteractionManager {
                 touchHint = document.createElement('div');
                 touchHint.id = 'mobile-touch-hint';
                 touchHint.className = 'mobile-hint';
-                touchHint.innerHTML = 'Tap anywhere to feed the singularity';
+                touchHint.innerHTML = 'Tap anywhere to interact with particles';
                 
                 document.body.appendChild(touchHint);
                 
@@ -252,7 +252,7 @@ export class TouchInteractionManager {
     }
     
     /**
-     * Handle single tap to create particles (similar to right-click)
+     * Handle single tap to create visual particle effects
      * @param {TouchEvent} event 
      */
     handleSingleTap(event) {
@@ -268,7 +268,7 @@ export class TouchInteractionManager {
             touchHint.style.opacity = '0';
         }
         
-        // Also hide the desktop hint
+        // Hide any other hints
         document.body.classList.add('hint-hidden');
         
         // Get touch position
@@ -292,32 +292,27 @@ export class TouchInteractionManager {
         const mouseX = ((clientX - rect.left) / canvasWidth) * 2 - 1;
         const mouseY = -((clientY - rect.top) / canvasHeight) * 2 + 1;
         
-        // Generate a random string to simulate the input text
-        const randomStrings = [
-            "stardust", "cosmos", "galaxy", "nebula", "supernova",
-            "quantum", "space", "time", "gravity", "relativity",
-            "universe", "dimension", "matter", "energy", "infinity",
-            "quasar", "pulsar", "neutron", "wormhole", "singularity",
-            "interstellar", "fusion", "entropy", "photon", "neutrino",
-            "eclipse", "orbit", "comet", "vacuum", "celestial"
-        ];
-        const randomText = randomStrings[Math.floor(Math.random() * randomStrings.length)];
-        
-        // Determine appropriate particle count based on device performance
-        const particleFactor = this.getDevicePerformanceFactor();
-        
-        // Create particle effect at the touch position with custom options
+        // Create particle effect at the touch position
         if (this.app.particleSystem) {
-            // Create visual touch feedback first with optimization for lower-end devices
+            // Create visual touch feedback first
             this.createTouchFeedback(clientX, clientY);
             
-            // Add a slight delay for better visual sequence
+            // Create a more subtle visual effect
+            const particleFactor = this.getDevicePerformanceFactor();
+            const particleCount = Math.floor(5 * particleFactor);
+            
+            // Add particles to the scene with a slight delay for better visual sequence
             setTimeout(() => {
-                this.app.particleSystem.createParticlesAtMouse(mouseX, mouseY, randomText, particleFactor);
+                if (this.app.particleSystem.createVisualEffect) {
+                    this.app.particleSystem.createVisualEffect(mouseX, mouseY, particleCount);
+                } else if (this.app.particleSystem.createParticlesAtMouse) {
+                    // Fallback to existing method if available
+                    this.app.particleSystem.createParticlesAtMouse(mouseX, mouseY, null, particleFactor);
+                }
                 
-                // Play sound effect with optimized loading
-                if (this.app.createDataInputSound) {
-                    this.app.createDataInputSound(0.7); // Reduce volume slightly on mobile
+                // Play a subtle sound effect if available
+                if (this.app.createEffectSound) {
+                    this.app.createEffectSound(0.4); // Lower volume for subtlety
                 }
             }, 50);
         }

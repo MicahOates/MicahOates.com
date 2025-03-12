@@ -69,8 +69,8 @@ export class TutorialManager {
         
         // Step 2: Tap interaction
         this.steps.push({
-            title: 'Feed the Singularity',
-            description: 'Tap anywhere on the screen to create particles that will flow into the black hole. Try tapping in different locations!',
+            title: 'Interactive Particles',
+            description: 'Tap anywhere on the screen to create interactive particles that will flow around the visualization. Try different locations!',
             animation: this.createTapAnimation()
         });
         

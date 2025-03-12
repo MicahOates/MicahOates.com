@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { PostProcessingManager } from './core/PostProcessingManager.js';
-import { SceneManager } from './scene/SceneManager.js';
+import { SceneManager } from './core/SceneManager.js';
 import { GravitationalLensing } from './effects/GravitationalLensing.js';
 import { NebulaEffect } from './effects/NebulaEffect.js';
 
@@ -1225,6 +1225,43 @@ export class App {
             setTimeout(() => {
                 if (callback) callback(rays);
             }, 0);
+        }
+    }
+    
+    /**
+     * Create a subtle sound effect for interactions
+     * @param {number} volume - Volume of the sound (0-1)
+     */
+    createEffectSound(volume = 0.5) {
+        try {
+            // Create a simple audio effect using Web Audio API
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            // Configure oscillator with a pleasing tone
+            oscillator.type = 'sine';
+            const baseFreq = 220 + Math.random() * 220;
+            oscillator.frequency.setValueAtTime(baseFreq, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(baseFreq * 1.5, audioContext.currentTime + 0.1);
+            
+            // Configure gain (volume)
+            gainNode.gain.setValueAtTime(Math.min(1, Math.max(0, volume)), audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.3);
+            
+            // Connect nodes
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            // Play and stop
+            oscillator.start();
+            oscillator.stop(audioContext.currentTime + 0.3);
+            
+            return true;
+        } catch (error) {
+            // Silently fail on browsers that don't support Web Audio API
+            console.warn('Audio effect not supported:', error);
+            return false;
         }
     }
 } 
